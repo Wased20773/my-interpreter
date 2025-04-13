@@ -44,6 +44,9 @@ type Expr = Add | Sub | Mul | Div | Neg | Lit | And | Or | Not | Let | Name | Eq
 
 # ------ Core Language 7 ----- #
 # Domain-specific extension (Tunes)
+'''
+
+'''
 
 @dataclass
 class Add:
@@ -81,7 +84,7 @@ class Neg:
     
 @dataclass
 class Lit:
-    value: int | float | bool
+    value: int | bool
     def __str__(self):
         return str(self.value)
 
@@ -241,17 +244,74 @@ n: Expr = Neg(Lit(False))
 print(n)
 # (not 5)
 
+o: Expr = Let("x", Add(Lit(1), Lit(2)), Sub(Name("x"), Lit(3)))
+print(o)
+# (Let x = (1 + 2) in (x - 3))
+
+p: Expr = Let("x", Lit(5), (Let("y", Lit(2), Add(Name("x"), Name("y")))))
+print(p)
+# (Let x = 5 in (Let y = 2 in (x + y)))
+
+q: Expr = Let("x", Lit(5), (Let("y", Lit(2), (Let("x", Lit(2), Add(Name("x"), Name("y")))))))
+print(q)
+# (let x = 5 in (let y = 2 in (let x = 2 in (x + y))))
+
+# r: Expr = 
+
+# s: Expr = 
+
+# t: Expr = 
+
+# u: Expr = 
+
+# v: Expr = 
+
+# w: Expr = 
+
+# x: Expr = 
+
+# y: Expr = 
+
+# z: Expr = 
+
+# ----- Environment ----- #
+
+type Binding[V] = tuple[str, V]  # this tuple type is always a pair
+type Env[V] = tuple[Binding[V], ...]  # this tuple type has arbitrary length
+
+from typing import Any
+emptyEnv: Env[Any] = ()  # the empty environment has no bindings
+
+def extendEnv[V](name: str, value: V, env: Env[V]) -> Env[V]:
+    '''Extend the environment env with a new binding of name to value'''
+    return ((name, value),) + env  # add a new binding to the front of the environment
+
+def lookupEnv[V](name: str, env: Env[V]) -> V | None:
+    '''Return the value bound to name in env, or None if name is not bound'''
+    match env:
+        case ((n, v), *rest):
+            if n == name:
+                return v
+            else:
+                return lookupEnv(name, rest)
+        case _:
+            return None
+
 class EvalError(Exception):
     pass
 
+
 def eval(expr: Expr) -> Expr:
+    return evalInEnv(emptyEnv, expr)
+
+def evalInEnv(env: Env[Expr], expr: Expr) -> Expr:
     match expr:
         case Lit(v):
             return v
         
         case Add(l, r):
-            left = eval(l)
-            right = eval(r)
+            left = evalInEnv(env, l)
+            right = evalInEnv(env, r)
             if isinstance(left, bool) or isinstance(right, bool):
                 raise EvalError("cannot add boolean values")
             elif not isinstance(left, (int, float)) or not isinstance(right, (int, float)):
@@ -259,8 +319,8 @@ def eval(expr: Expr) -> Expr:
             return left + right
         
         case Sub(l, r):
-            left = eval(l)
-            right = eval(r)
+            left = evalInEnv(env, l)
+            right = evalInEnv(env, r)
             if isinstance(left, bool) or isinstance(right, bool):
                 raise EvalError("cannot subtract boolean values")
             elif not isinstance(left, (int, float)) or not isinstance(right, (int, float)):
@@ -268,8 +328,8 @@ def eval(expr: Expr) -> Expr:
             return left - right
         
         case Mul(l, r):
-            left = eval(l)
-            right = eval(r)
+            left = evalInEnv(env, l)
+            right = evalInEnv(env, r)
             if isinstance(left, bool) or isinstance(right, bool):
                 raise EvalError("cannot multiply boolean values")
             elif not isinstance(left, (int, float)) or not isinstance(right, (int, float)):
@@ -277,8 +337,8 @@ def eval(expr: Expr) -> Expr:
             return left * right
         
         case Div(l, r):
-            left = eval(l)
-            right = eval(r)
+            left = evalInEnv(env, l)
+            right = evalInEnv(env, r)
             if isinstance(left, bool) or isinstance(right, bool):
                 raise EvalError("cannot divide boolean values")
             elif not isinstance(left, (int, float)) or not isinstance(right, (int, float)):
@@ -288,7 +348,7 @@ def eval(expr: Expr) -> Expr:
             return left / right
         
         case Neg(e):
-            value = eval(e)
+            value = evalInEnv(env, e)
             if isinstance(value, bool):
                 raise EvalError("cannot negate boolean values")
             elif not isinstance(value, (int, float)):
@@ -296,8 +356,8 @@ def eval(expr: Expr) -> Expr:
             return -value
         
         case And(l, r):
-            left = eval(l)
-            right = eval(r)
+            left = evalInEnv(env, l)
+            right = evalInEnv(env, r)
             if not isinstance(left, bool) or not isinstance(right, bool):
                 raise EvalError("and operator requires boolean operands")
             elif isinstance(left, bool) and isinstance(right, bool):
@@ -305,8 +365,8 @@ def eval(expr: Expr) -> Expr:
             return False
         
         case Or(l, r):
-            left = eval(l)
-            right = eval(r)
+            left = evalInEnv(env, l)
+            right = evalInEnv(env, r)
             if not isinstance(left, bool) or not isinstance(right, bool):
                 raise EvalError("or operator requires boolean operands")
             elif isinstance(left, bool) and isinstance(right, bool):
@@ -314,11 +374,25 @@ def eval(expr: Expr) -> Expr:
             return False
         
         case Not(e):
-            if not isinstance(eval(e), bool):
+            if not isinstance(evalInEnv(env, e), bool):
                 raise EvalError("not operator requires boolean operands")
-            elif isinstance(eval(e), bool):
+            elif isinstance(evalInEnv(env, e), bool):
                 return False
             return True
+        
+        case Name(name):
+            value = lookupEnv(name, env)
+            if value is None:
+                raise EvalError(f"unbound name: {name}")
+            return value
+        
+        case Let(name, defn, body):
+            # Get expression of name
+            new_defn = evalInEnv(env, defn)
+            # Extend env with name
+            newEnv = extendEnv(name, new_defn, env)
+            return evalInEnv(newEnv, body)
+
 
 def run(expr: Expr) -> None:
     print(f"running: {expr}") # Might remove
@@ -345,3 +419,6 @@ run(k) # and operator requires boolean operands
 run(l) # cannot add boolean values
 run(m) # not operator requires boolean operands
 run(n) # cannot negate boolean values
+run(o) # 0
+run(p) # 7
+run(q) # 4
