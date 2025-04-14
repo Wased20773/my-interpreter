@@ -186,105 +186,20 @@ class If:
 class Note:
     pass
 
-
-# ----- Expressions ----- #
-a: Expr = Add(Add(Lit(5), Lit(2)), Lit(8))
-print(a)
-# ((5 + 2) + 8)
-
-b: Expr = Add(Add(Lit(3.8), Lit(0.2)), Lit(1))
-print(b)
-# (4.8 + 0.2)
-
-c: Expr = Sub(Lit(5), Lit(1))
-print(c)
-# (5 - 1)
-
-d: Expr = Mul(Add(Add(Lit(4), Lit(2)), Neg(Lit(2))), Lit(2))
-print(d)
-# (((4 + 2) + (-2)) * 2)
-
-e: Expr = Div(Add(Lit(4), Lit(2)), Lit(2))
-print(e)
-# ((4 + 2) / 2)
-
-f: Expr = Div(Lit(6), Lit(0))
-print(f)
-# (6 / 0)
-
-g: Expr = Div(Lit(0), Lit(6))
-print(g)
-# (0 / 6)
-
-h: Expr = Div(Lit(5), Lit(2))
-print(h)
-# (5 / 2)
-
-i: Expr = Neg(Add(Lit(5), Lit(2)))
-print(i)
-# (5 / 2)
-
-j: Expr = Neg(Lit(10))
-print(j)
-# (-10)
-
-k: Expr = And(Lit(True), Lit(5))
-print(k)
-# (True and 5)
-
-l: Expr = Add(Lit(True), Lit(1))
-print(l)
-# (True + 1)
-
-m: Expr = Not(Lit(5))
-print(m)
-# (not 5)
-
-n: Expr = Neg(Lit(False))
-print(n)
-# (not 5)
-
-o: Expr = Let("x", Add(Lit(1), Lit(2)), Sub(Name("x"), Lit(3)))
-print(o)
-# (Let x = (1 + 2) in (x - 3))
-
-p: Expr = Let("x", Lit(5), (Let("y", Lit(2), Add(Name("x"), Name("y")))))
-print(p)
-# (Let x = 5 in (Let y = 2 in (x + y)))
-
-q: Expr = Let("x", Lit(5), (Let("y", Lit(2), (Let("x", Lit(2), Add(Name("x"), Name("y")))))))
-print(q)
-# (let x = 5 in (let y = 2 in (let x = 2 in (x + y))))
-
-# r: Expr = 
-
-# s: Expr = 
-
-# t: Expr = 
-
-# u: Expr = 
-
-# v: Expr = 
-
-# w: Expr = 
-
-# x: Expr = 
-
-# y: Expr = 
-
-# z: Expr = 
-
 # ----- Environment ----- #
 
 type Binding[V] = tuple[str, V]  # this tuple type is always a pair
 type Env[V] = tuple[Binding[V], ...]  # this tuple type has arbitrary length
 
+
 from typing import Any
 emptyEnv: Env[Any] = ()  # the empty environment has no bindings
+
 
 def extendEnv[V](name: str, value: V, env: Env[V]) -> Env[V]:
     '''Extend the environment env with a new binding of name to value'''
     return ((name, value),) + env  # add a new binding to the front of the environment
+
 
 def lookupEnv[V](name: str, env: Env[V]) -> V | None:
     '''Return the value bound to name in env, or None if name is not bound'''
@@ -303,6 +218,7 @@ class EvalError(Exception):
 
 def eval(expr: Expr) -> Expr:
     return evalInEnv(emptyEnv, expr)
+
 
 def evalInEnv(env: Env[Expr], expr: Expr) -> Expr:
     match expr:
@@ -374,11 +290,10 @@ def evalInEnv(env: Env[Expr], expr: Expr) -> Expr:
             return False
         
         case Not(e):
-            if not isinstance(evalInEnv(env, e), bool):
+            value = evalInEnv(env, e)
+            if not isinstance(value, bool):
                 raise EvalError("not operator requires boolean operands")
-            elif isinstance(evalInEnv(env, e), bool):
-                return False
-            return True
+            return not value
         
         case Name(name):
             value = lookupEnv(name, env)
@@ -387,6 +302,9 @@ def evalInEnv(env: Env[Expr], expr: Expr) -> Expr:
             return value
         
         case Let(name, defn, body):
+            if name == "":
+                raise EvalError("name cannot be empty")
+
             # Get expression of name
             new_defn = evalInEnv(env, defn)
             # Extend env with name
@@ -404,21 +322,3 @@ def run(expr: Expr) -> None:
         print(f"result: {i}")
     except EvalError as err:
         print(err)
-
-run(a) # 15
-run(b) # 5.0
-run(c) # 4
-run(d) # 8
-run(e) # 3.0
-run(f) # division by zero
-run(g) # 0.0
-run(h) # 2.5
-run(i) # -7
-run(j) # -10
-run(k) # and operator requires boolean operands
-run(l) # cannot add boolean values
-run(m) # not operator requires boolean operands
-run(n) # cannot negate boolean values
-run(o) # 0
-run(p) # 7
-run(q) # 4
