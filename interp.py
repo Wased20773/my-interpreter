@@ -309,6 +309,84 @@ def evalInEnv(env: Env[Expr], expr: Expr) -> Expr:
             # Extend env with name
             newEnv = extendEnv(name, new_defn, env)
             return evalInEnv(newEnv, body)
+        
+        case Eq(l, r):
+            left = evalInEnv(env, l)
+            right = evalInEnv(env, r)
+            # check if left and right are the same type
+            # while also excepting mixed types, like int and bool
+            if type(left) != type(right):
+                raise EvalError("cannot compare different types")
+            if isinstance(left, bool) and isinstance(right, bool):
+                return left == right
+            elif isinstance(left, int) and isinstance(right, int):
+                return left == right
+            else:
+                raise EvalError("Must compare using int, or bool types")
+            
+        case Neq(l, r):
+            left = evalInEnv(env, l)
+            right = evalInEnv(env, r)
+            # check if left and right are the same type
+            # while also excepting mixed types, like int and bool
+            if type(left) != type(right):
+                raise EvalError("cannot compare different types")
+            if isinstance(left, bool) and isinstance(right, bool):
+                return left != right
+            elif isinstance(left, int) and isinstance(right, int):
+                return left != right
+            else:
+                raise EvalError("Must compare using int, or bool types")
+        
+        case Lt(l, r):
+            left = evalInEnv(env, l)
+            right = evalInEnv(env, r)
+            if isinstance(left, int) and isinstance(right, int):
+                return left < right
+            else:
+                raise EvalError("operand must be integer")
+            
+        case LorE(l, r):
+            left = evalInEnv(env, l)
+            right = evalInEnv(env, r)
+            if isinstance(left, int) and isinstance(right, int):
+                return left <= right
+            else:
+                raise EvalError("operand must be integer")
+            
+        case Gt(l, r):
+            left = evalInEnv(env, l)
+            right = evalInEnv(env, r)
+            if isinstance(left, int) and isinstance(right, int):
+                return left > right
+            else:
+                raise EvalError("operand must be integer")
+            
+            
+        case GorE(l, r):
+            left = evalInEnv(env, l)
+            right = evalInEnv(env, r)
+            if isinstance(left, int) and isinstance(right, int):
+                return left >= right
+            else:
+                raise EvalError("operand must be integer")
+            
+        case If(b, t, e):
+            cond = evalInEnv(env, b)
+            if not isinstance(cond, bool):
+                raise EvalError("If condition must be boolean")
+            
+            
+            if cond: # if condition is true
+                then_branch = evalInEnv(env, t)
+                if not isinstance(then_branch, (int, bool)):
+                    raise EvalError("If then must be int or bool")
+                return then_branch
+            else:   # condition is false
+                else_branch = evalInEnv(env, e)
+                if not isinstance(else_branch, (int, bool)):
+                    raise EvalError("If else must be int or bool")
+                return else_branch
 
 
 def run(expr: Expr) -> None:
@@ -319,3 +397,7 @@ def run(expr: Expr) -> None:
         print(f"result: {result}")
     except EvalError as err:
         print(err)
+
+a : Expr = If(Eq(Mul(Lit(2), Lit(4)), Lit(8)), Add(Lit(1), Lit(2)), Sub(Lit(3), Lit(4)))
+
+run(a)

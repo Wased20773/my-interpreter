@@ -1,6 +1,6 @@
 import unittest
 
-from interp import Lit, Add, Sub, Mul, Div, Neg, And, Or, Not, Let, Name, Let, EvalError
+from interp import Lit, Add, Sub, Mul, Div, Neg, And, Or, Not, Let, Name, Let, Eq, Neq, Lt, LorE, Gt, GorE, If, EvalError
 
 class TestExpr(unittest.TestCase):
     def eval(self, expr, expected):
@@ -216,3 +216,178 @@ class TestExpr(unittest.TestCase):
         with self.assertRaises(EvalError) as context:
             eval(Let("", Lit(5), Add(Name("x"), Lit(2))))
         self.assertEqual(str(context.exception), "Name cannot be empty")
+
+    def test_Eq(self):
+        # Test equality of two literals
+        self.eval(Eq(Lit(5), Lit(5)), True)
+        self.eval(Eq(Lit(5), Lit(2)), False)
+        self.eval(Eq(Lit(True), Lit(True)), True)
+        self.eval(Eq(Lit(False), Lit(True)), False)
+        
+        from interp import eval
+
+        # Testing with string literals
+        with self.assertRaises(EvalError) as context:
+            eval(Eq(Lit("Hello"), Lit("Hello")))
+        self.assertEqual(str(context.exception), "Must compare using int, or bool types")
+        
+        # Testing with float literals
+        with self.assertRaises(EvalError) as context:
+            eval(Eq(Lit(3.8), Lit(5)))
+        self.assertEqual(str(context.exception), "cannot compare different types")
+        
+        # Testing with string literals
+        with self.assertRaises(EvalError) as context:
+            eval(Eq(Lit("Hello"), Lit(True)))
+        self.assertEqual(str(context.exception), "cannot compare different types")
+
+    def test_Neq(self):
+        # Test inequality of two literals
+        self.eval(Neq(Lit(5), Lit(5)), False)
+        self.eval(Neq(Lit(5), Lit(2)), True)
+        self.eval(Neq(Lit(True), Lit(True)), False)
+        self.eval(Neq(Lit(False), Lit(True)), True)
+
+        from interp import eval
+
+        # Testing with string literals
+        with self.assertRaises(EvalError) as context:
+            eval(Neq(Lit("Hello"), Lit("Hello")))
+        self.assertEqual(str(context.exception), "Must compare using int, or bool types")
+
+        # Testing with mixed literals
+        with self.assertRaises(EvalError) as context:
+            eval(Neq(Lit(3.8), Lit(5)))
+        self.assertEqual(str(context.exception), "cannot compare different types")  
+
+        # Testing with mixed literals
+        with self.assertRaises(EvalError) as context:
+            eval(Neq(Lit("Hello"), Lit(True)))
+        self.assertEqual(str(context.exception), "cannot compare different types")
+
+    def test_Lt(self):
+        # Test less than comparison of two literals
+        self.eval(Lt(Lit(5), Lit(10)), True)
+        self.eval(Lt(Lit(10), Lit(5)), False)
+        self.eval(Lt(Lit(5), Lit(5)), False)
+
+        from interp import eval
+
+        # Testing with string literals
+        with self.assertRaises(EvalError) as context:
+            eval(Lt(Lit("Hello"), Lit("World")))
+        self.assertEqual(str(context.exception), "operand must be integer")
+        
+        # Testing with float literals
+        with self.assertRaises(EvalError) as context:
+            eval(Lt(Lit(3.8), Lit(5)))
+        self.assertEqual(str(context.exception), "operand must be integer")
+        
+        # Testing with mixed literals
+        with self.assertRaises(EvalError) as context:
+            eval(Lt(Lit("Hello"), Lit(True)))
+        self.assertEqual(str(context.exception), "operand must be integer")
+
+    def test_LorE(self):
+        # Test less than or equal comparison of two literals
+        self.eval(LorE(Lit(5), Lit(10)), True)
+        self.eval(LorE(Lit(5), Lit(5)), True)
+        self.eval(LorE(Lit(10), Lit(5)), False)
+
+        from interp import eval
+
+        # Testing with string literals
+        with self.assertRaises(EvalError) as context:
+            eval(LorE(Lit("Hello"), Lit("World")))
+        self.assertEqual(str(context.exception), "operand must be integer")
+
+        # Testing with float literals
+        with self.assertRaises(EvalError) as context:
+            eval(LorE(Lit(3.8), Lit(5)))
+        self.assertEqual(str(context.exception), "operand must be integer")
+
+        # Testing with mixed literals
+        with self.assertRaises(EvalError) as context:
+            eval(LorE(Lit("Hello"), Lit(True)))
+        self.assertEqual(str(context.exception), "operand must be integer")
+
+    def test_Gt(self):
+        # Test greater than comparison of two literals
+        self.eval(Gt(Lit(10), Lit(5)), True)
+        self.eval(Gt(Lit(5), Lit(10)), False)
+        self.eval(Gt(Lit(5), Lit(5)), False)
+
+        from interp import eval
+
+        # Testing with string literals
+        with self.assertRaises(EvalError) as context:
+            eval(Gt(Lit("Hello"), Lit("World")))
+        self.assertEqual(str(context.exception), "operand must be integer")
+
+        # Testing with float literals
+        with self.assertRaises(EvalError) as context:
+            eval(Gt(Lit(3.8), Lit(5)))
+        self.assertEqual(str(context.exception), "operand must be integer")
+
+        # Testing with mixed literals
+        with self.assertRaises(EvalError) as context:
+            eval(Gt(Lit("Hello"), Lit(True)))
+        self.assertEqual(str(context.exception), "operand must be integer")
+
+    def test_GorE(self):
+        # Test greater than or equal comparison of two literals
+        self.eval(GorE(Lit(10), Lit(5)), True)
+        self.eval(GorE(Lit(5), Lit(5)), True)
+        self.eval(GorE(Lit(5), Lit(10)), False)
+
+        from interp import eval
+
+        # Testing with string literals
+        with self.assertRaises(EvalError) as context:
+            eval(GorE(Lit("Hello"), Lit("World")))
+        self.assertEqual(str(context.exception), "operand must be integer")
+
+        # Testing with float literals
+        with self.assertRaises(EvalError) as context:
+            eval(GorE(Lit(3.8), Lit(5)))
+        self.assertEqual(str(context.exception), "operand must be integer")
+
+        # Testing with mixed literals
+        with self.assertRaises(EvalError) as context:
+            eval(GorE(Lit("Hello"), Lit(True)))
+        self.assertEqual(str(context.exception), "operand must be integer")
+
+    def test_If(self):
+        # Test if expression
+        self.eval(If(Lit(True), Lit(5), Lit(10)), 5)
+        self.eval(If(Lit(False), Lit(5), Lit(10)), 10)
+        self.eval(If(Lt(Lit(5), Lit(10)), Lit(5), Lit(10)), 5)
+        self.eval(If(Lt(Lit(10), Lit(5)), Lit(5), Lit(10)), 10)
+        self.eval(If(And(Lt(Lit(50), Lit(100)), Gt(Lit(50), Lit(0))), Lit(True), Lit(False)), True)
+
+        from interp import eval
+
+        # Testing with string literals
+        with self.assertRaises(EvalError) as context:
+            eval(If(Lit("Hello"), Lit(5), Lit(10)))
+        self.assertEqual(str(context.exception), "If condition must be boolean")
+
+        # Testing with float literals
+        with self.assertRaises(EvalError) as context:
+            eval(If(Lit(3.8), Lit(5), Lit(10)))
+        self.assertEqual(str(context.exception), "If condition must be boolean")
+
+        # Testing with mixed literals
+        with self.assertRaises(EvalError) as context:
+            eval(If(And(Lit(True), Lit(5)), Lit("Hello"), Lit(5)))
+        self.assertEqual(str(context.exception), "And operator requires boolean operands")
+
+        # Testing with none int/bool then
+        with self.assertRaises(EvalError) as context:
+            eval(If(Lit(True), Lit("Hello"), Lit(5)))
+        self.assertEqual(str(context.exception), "If then must be int or bool")
+
+        # Testing with none int/bool else
+        with self.assertRaises(EvalError) as context:
+            eval(If(Lit(False), Lit(5), Lit("Hello")))
+        self.assertEqual(str(context.exception), "If else must be int or bool")
