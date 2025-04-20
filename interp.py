@@ -6,7 +6,6 @@ type Expr = Add | Sub | Mul | Div | Neg | Lit | And | Or | Not | Let | Name | Eq
 # ------ Core Language 1 ----- #
 # Arithmitic
 #   - Lit(int) ✅
-#   - Lit(float) ✅
 #   - Add ✅
 #   - Sub ✅
 #   - Mul ✅
@@ -230,8 +229,8 @@ def evalInEnv(env: Env[Expr], expr: Expr) -> Expr:
             right = evalInEnv(env, r)
             if isinstance(left, bool) or isinstance(right, bool):
                 raise EvalError("cannot add boolean values")
-            elif not isinstance(left, (int, float)) or not isinstance(right, (int, float)):
-                raise EvalError("addition operator requires numeric operands")
+            elif not isinstance(left, int) or not isinstance(right, int):
+                raise EvalError("addition operator requires integer operands")
             return left + right
         
         case Sub(l, r):
@@ -239,8 +238,8 @@ def evalInEnv(env: Env[Expr], expr: Expr) -> Expr:
             right = evalInEnv(env, r)
             if isinstance(left, bool) or isinstance(right, bool):
                 raise EvalError("cannot subtract boolean values")
-            elif not isinstance(left, (int, float)) or not isinstance(right, (int, float)):
-                raise EvalError("subtraction operator requires numeric operands")
+            elif not isinstance(left, int) or not isinstance(right, int):
+                raise EvalError("subtraction operator requires integer operands")
             return left - right
         
         case Mul(l, r):
@@ -248,8 +247,8 @@ def evalInEnv(env: Env[Expr], expr: Expr) -> Expr:
             right = evalInEnv(env, r)
             if isinstance(left, bool) or isinstance(right, bool):
                 raise EvalError("cannot multiply boolean values")
-            elif not isinstance(left, (int, float)) or not isinstance(right, (int, float)):
-                raise EvalError("multiplication operator requires numeric operands")
+            elif not isinstance(left, int) or not isinstance(right, int):
+                raise EvalError("multiplication operator requires integer operands")
             return left * right
         
         case Div(l, r):
@@ -257,25 +256,25 @@ def evalInEnv(env: Env[Expr], expr: Expr) -> Expr:
             right = evalInEnv(env, r)
             if isinstance(left, bool) or isinstance(right, bool):
                 raise EvalError("cannot divide boolean values")
-            elif not isinstance(left, (int, float)) or not isinstance(right, (int, float)):
-                raise EvalError("division operator requires numeric operands")
+            elif not isinstance(left, int) or not isinstance(right, int):
+                raise EvalError("division operator requires integer operands")
             if (right == 0):
                 raise EvalError("division by zero")
-            return left / right
+            return left // right
         
         case Neg(e):
             value = evalInEnv(env, e)
             if isinstance(value, bool):
                 raise EvalError("cannot negate boolean values")
-            elif not isinstance(value, (int, float)):
-                raise EvalError("negation operator requires numeric operands")
+            elif not isinstance(value, int):
+                raise EvalError("negation operator requires integer operands")
             return -value
         
         case And(l, r):
             left = evalInEnv(env, l)
             right = evalInEnv(env, r)
             if not isinstance(left, bool) or not isinstance(right, bool):
-                raise EvalError("and operator requires boolean operands")
+                raise EvalError("And operator requires boolean operands")
             elif isinstance(left, bool) and isinstance(right, bool):
                 return left and right
             return False
@@ -284,7 +283,7 @@ def evalInEnv(env: Env[Expr], expr: Expr) -> Expr:
             left = evalInEnv(env, l)
             right = evalInEnv(env, r)
             if not isinstance(left, bool) or not isinstance(right, bool):
-                raise EvalError("or operator requires boolean operands")
+                raise EvalError("Or operator requires boolean operands")
             elif isinstance(left, bool) and isinstance(right, bool):
                 return left or right
             return False
@@ -292,18 +291,18 @@ def evalInEnv(env: Env[Expr], expr: Expr) -> Expr:
         case Not(e):
             value = evalInEnv(env, e)
             if not isinstance(value, bool):
-                raise EvalError("not operator requires boolean operands")
+                raise EvalError("Not operator requires boolean operands")
             return not value
         
         case Name(name):
             value = lookupEnv(name, env)
             if value is None:
-                raise EvalError(f"unbound name: {name}")
+                raise EvalError(f"unbound Name: {name}")
             return value
         
         case Let(name, defn, body):
             if name == "":
-                raise EvalError("name cannot be empty")
+                raise EvalError("Name cannot be empty")
 
             # Get expression of name
             new_defn = evalInEnv(env, defn)
@@ -315,10 +314,8 @@ def evalInEnv(env: Env[Expr], expr: Expr) -> Expr:
 def run(expr: Expr) -> None:
     print(f"running: {expr}") # Might remove
     try:
-        i = eval(expr)
-        if isinstance(i, float) and i.is_integer(): # Convert float to int if it is something like 3.0
-            i = int(i)
+        result = eval(expr)
 
-        print(f"result: {i}")
+        print(f"result: {result}")
     except EvalError as err:
         print(err)
