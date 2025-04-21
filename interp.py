@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from midiutil import MIDIFile
+import os
 
 type Expr = Add | Sub | Mul | Div | Neg | Lit | And | Or | Not | Let | Name | Eq | Neq | Lt | LorE | Gt | GorE | If
 
@@ -264,7 +265,9 @@ def lookupEnv[V](name: str, env: Env[V]) -> V | None:
 class EvalError(Exception):
     pass
 
-def transpose_note(tune: Tune, steps: int) -> Tune:
+# ----- Tunes functions ----- #
+
+def TransposeNote(tune: Tune, steps: int) -> Tune:
     if not isinstance(tune, Tune):
         raise EvalError("Transpose note to be type Note")
     
@@ -297,10 +300,44 @@ def transpose_note(tune: Tune, steps: int) -> Tune:
 
     return Tune(notes)
 
+FILENAME = "answer.midi"
+DEFAULT_TEMPO = 400 # 200 BPM
+DEFAULT_VOLUME = 100
+def CreateMidiFile(tune: Tune, instrument: int):
+    midi = MIDIFile(1)
+    # Set up MIDI structure 
+    track = 0
+    time = 0
+    channel = instrument
+    volume = DEFAULT_VOLUME
+
+    tempo = DEFAULT_TEMPO
+    midi.addTempo(track, time, tempo)
+
+    midi.addProgramChange(track, channel, time, instrument)
+    
+    for note in tune.notes:
+        duration = note.duration
+
+        if note.pitch == "R":
+            time = time + duration
+            continue
+
+        pitch = NOTE_TO_MIDI[note.pitch]
+        midi.addNote(track, channel, pitch, time, duration, volume)
+        time += duration
+    
+    with open(FILENAME, "wb") as output_file:
+        midi.writeFile(output_file)
+    print(f"MIDI saves as {FILENAME}")
+
+def PlayMidiFile():
+    os.startfile(FILENAME)
+
+# ----- Evaluation ----- #
 
 def eval(expr: Expr) -> Expr:
     return evalInEnv(emptyEnv, expr)
-
 
 def evalInEnv(env: Env[Expr], expr: Expr) -> Expr:
     match expr:
@@ -367,7 +404,6 @@ def evalInEnv(env: Env[Expr], expr: Expr) -> Expr:
                 raise EvalError("Or operator requires boolean operands")
             return left or right
 
-        
         case Not(e):
             value = evalInEnv(env, e)
             if not isinstance(value, bool):
@@ -444,7 +480,6 @@ def evalInEnv(env: Env[Expr], expr: Expr) -> Expr:
             else:
                 raise EvalError("operand must be integer")
             
-            
         case GorE(l, r):
             left = evalInEnv(env, l)
             right = evalInEnv(env, r)
@@ -457,8 +492,7 @@ def evalInEnv(env: Env[Expr], expr: Expr) -> Expr:
             cond = evalInEnv(env, b)
             if not isinstance(cond, bool):
                 raise EvalError("If condition must be boolean")
-            
-            
+
             if cond: # if condition is true
                 then_branch = evalInEnv(env, t)
                 if not isinstance(then_branch, (int, bool)):
@@ -512,7 +546,7 @@ def evalInEnv(env: Env[Expr], expr: Expr) -> Expr:
             if not isinstance(t, Tune):
                 return EvalError("Transpose can only tune up or down Tunes")
             
-            return transpose_note(t, s)
+            return TransposeNote(t, s)
 
         case _:
             raise EvalError(f"unknown expression: {expr}")
@@ -535,6 +569,94 @@ h : Expr = Transpose(f, 5)
 i : Expr = Transpose(d, -5)
 j : Expr = Transpose(e, 10)
 
+all_notes =  Tune([Note("C", Lit(1)), Note("C#", Lit(1)), Note("D", Lit(1)),
+                   Note("D#", Lit(1)), Note("E", Lit(1)), Note("F", Lit(1)),
+                   Note("F#", Lit(1)), Note("G", Lit(1)), Note("G#", Lit(1)),
+                   Note("A", Lit(1)), Note("A#", Lit(1)), Note("B", Lit(1))])
+
+twinkle_star = Tune([
+    Note("C", Lit(1)), Note("C", Lit(1)), Note("G", Lit(1)), Note("G", Lit(1)),
+    Note("A", Lit(1)), Note("A", Lit(1)), Note("G", Lit(2)),
+
+    Note("F", Lit(1)), Note("F", Lit(1)), Note("E", Lit(1)), Note("E", Lit(1)),
+    Note("D", Lit(1)), Note("D", Lit(1)), Note("C", Lit(2)),
+])
+
+song1 = Tune([
+    Note("C", Lit(1)), Note("E", Lit(1)), Note("G", Lit(1)), Note("C", Lit(1)),
+    Note("G", Lit(1)), Note("A", Lit(1)), Note("G", Lit(1)), Note("E", Lit(1)),
+    Note("D", Lit(1)), Note("F", Lit(1)), Note("A", Lit(1)), Note("F", Lit(1)),
+    Note("E", Lit(1)), Note("D", Lit(1)), Note("C", Lit(2)),
+])
+
+song2 = Tune([
+    # Bar 1–4: Calm intro (C - E - G - C)
+    Note("C", Lit(1)), Note("E", Lit(1)), Note("G", Lit(1)), Note("C", Lit(1)),
+    Note("C", Lit(1)), Note("E", Lit(1)), Note("G", Lit(1)), Note("C", Lit(1)),
+    Note("C", Lit(1)), Note("E", Lit(1)), Note("G", Lit(1)), Note("C", Lit(1)),
+    Note("C", Lit(1)), Note("E", Lit(1)), Note("G", Lit(1)), Note("C", Lit(1)),
+
+    # Bar 5–8: Soothing shift (A - D - F - A)
+    Note("A", Lit(1)), Note("D", Lit(1)), Note("F", Lit(1)), Note("A", Lit(1)),
+    Note("A", Lit(1)), Note("D", Lit(1)), Note("F", Lit(1)), Note("A", Lit(1)),
+    Note("A", Lit(1)), Note("D", Lit(1)), Note("F", Lit(1)), Note("A", Lit(1)),
+    Note("A", Lit(1)), Note("D", Lit(1)), Note("F", Lit(1)), Note("A", Lit(1)),
+
+    # Bar 9–12: Slight build-up (G - B - D - G)
+    Note("G", Lit(1)), Note("B", Lit(1)), Note("D", Lit(1)), Note("G", Lit(1)),
+    Note("G", Lit(1)), Note("B", Lit(1)), Note("D", Lit(1)), Note("G", Lit(1)),
+    Note("G", Lit(1)), Note("B", Lit(1)), Note("D", Lit(1)), Note("G", Lit(1)),
+    Note("G", Lit(1)), Note("B", Lit(1)), Note("D", Lit(1)), Note("G", Lit(1)),
+
+    # Bar 13–15: Peaceful ending (E - C - G - R)
+    Note("E", Lit(1)), Note("C", Lit(1)), Note("G", Lit(1)), Note("R", Lit(1)),
+    Note("E", Lit(1)), Note("C", Lit(1)), Note("G", Lit(1)), Note("R", Lit(1)),
+    Note("C", Lit(4)), Note("R", Lit(4)),
+
+    Note("C", Lit(1)), Note("E", Lit(1)), Note("G", Lit(1)), Note("C", Lit(1)),
+    Note("G", Lit(3)), Note("A", Lit(3)), Note("G", Lit(3)), Note("E", Lit(3)),
+    Note("D", Lit(1)), Note("F", Lit(1)), Note("A", Lit(1)), Note("F", Lit(1)),
+    Note("E", Lit(3)), Note("D", Lit(3)), Note("C", Lit(3)),
+
+    # Bar 1–4: Calm intro (C - E - G - C)
+    Note("C", Lit(1)), Note("E", Lit(1)), Note("G", Lit(1)), Note("C", Lit(1)),
+    Note("C", Lit(1)), Note("E", Lit(1)), Note("G", Lit(1)), Note("C", Lit(1)),
+    Note("C", Lit(1)), Note("E", Lit(1)), Note("G", Lit(1)), Note("C", Lit(1)),
+    Note("C", Lit(1)), Note("E", Lit(1)), Note("G", Lit(1)), Note("C", Lit(1)),
+
+    # Bar 5–8: Soothing shift (A - D - F - A)
+    Note("A", Lit(1)), Note("D", Lit(1)), Note("F", Lit(1)), Note("A", Lit(1)),
+    Note("A", Lit(1)), Note("D", Lit(1)), Note("F", Lit(1)), Note("A", Lit(1)),
+    Note("A", Lit(1)), Note("D", Lit(1)), Note("F", Lit(1)), Note("A", Lit(1)),
+    Note("A", Lit(1)), Note("D", Lit(1)), Note("F", Lit(1)), Note("A", Lit(1)),
+
+    # Bar 9–12: Slight build-up (G - B - D - G)
+    Note("G", Lit(1)), Note("B", Lit(1)), Note("D", Lit(1)), Note("G", Lit(1)),
+    Note("G", Lit(1)), Note("B", Lit(1)), Note("D", Lit(1)), Note("G", Lit(1)),
+    Note("G", Lit(1)), Note("B", Lit(1)), Note("D", Lit(1)), Note("G", Lit(1)),
+    Note("G", Lit(1)), Note("B", Lit(1)), Note("D", Lit(1)), Note("G", Lit(1)),
+
+    # Bar 13–15: Peaceful ending (E - C - G - R)
+    Note("E", Lit(1)), Note("C", Lit(1)), Note("G", Lit(1)), Note("R", Lit(1)),
+    Note("E", Lit(1)), Note("C", Lit(1)), Note("G", Lit(1)), Note("R", Lit(1)),
+    Note("C", Lit(4)), Note("R", Lit(4)),
+
+    Note("C", Lit(1)), Note("E", Lit(1)), Note("G", Lit(1)), Note("C", Lit(1)),
+    Note("G", Lit(3)), Note("A", Lit(3)), Note("G", Lit(3)), Note("E", Lit(3)),
+    Note("D", Lit(1)), Note("F", Lit(1)), Note("A", Lit(1)), Note("F", Lit(1)),
+    Note("E", Lit(3)), Note("D", Lit(3)), Note("C", Lit(3)),
+])
+
+# Hamster Dance
+Hamster = Tune([
+    Note("G#", Lit(1)), Note("G", Lit(1)), Note("G#", Lit(2)),
+    Note("D", Lit(1)), Note("E", Lit(1)), Note("C#", Lit(1)),
+    Note("C#", Lit(2)), Note("C", Lit(4)),
+    Note("R", Lit(2)),
+    Note("G#", Lit(2)), Note("C", Lit(2)), Note("E", Lit(2)), Note("G#", Lit(1)), Note("B", Lit(1))
+])
+
+
 run(d)
 run(e)
 run(f)
@@ -542,3 +664,6 @@ run(g)
 run(h)
 run(i)
 run(j)
+
+CreateMidiFile(evalInEnv(emptyEnv, song2), 0)
+PlayMidiFile()
