@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from midiutil import MIDIFile
 
 type Expr = Add | Sub | Mul | Div | Neg | Lit | And | Or | Not | Let | Name | Eq | Neq | Lt | LorE | Gt | GorE | If
 
@@ -38,11 +39,15 @@ type Expr = Add | Sub | Mul | Div | Neg | Lit | And | Or | Not | Let | Name | Eq
 
 # ------ Core Language 6 ----- #
 # conditional
-#   - If
+#   - If ✅
 #   - more? (might be discussed with professor in lecture)
 
 # ------ Core Language 7 ----- #
-# Domain-specific extension (Tunes)
+#   - Note ✅
+#   - Tune ✅
+#   - ConcatTunes ✅
+#   - Transpose
+
 '''
 
 '''
@@ -179,11 +184,57 @@ class If:
         return f"(if {self.cond} then {self.then} else {self.else_})"
 
 # ----- Domain-specific extension (Tunes) ----- #
-
-# Dont focus on this yet
 @dataclass
 class Note:
-    pass
+    pitch: str # "C", "D", "E", "F", "G", "A", "B" or "R" for rest
+    duration: Expr # in seconds (evaluated to an integer)
+
+    def __str__(self):
+        return f"Note(Pitch: {self.pitch}, Duration: {self.duration})"
+
+@dataclass
+class Tune:
+    notes: list[Note]
+
+    def __str__(self):
+        return f" Tune[{', '.join(str(note) for note in self.notes)}]"
+
+@dataclass
+class ConcatTunes:
+    left: Tune
+    right: Tune
+
+    def __str__(self):
+        return f"ConcatTunes({self.left}, {self.right})"
+
+@dataclass
+class Transpose:
+    tune: Tune
+    steps: int
+
+    def __str__(self):
+        return f"Transpose({self.tune}, {self.steps})"
+
+NOTE_TO_MIDI = {
+    "C": 60, "C#": 61,
+    "D": 62, "D#": 63,
+    "E": 64,
+    "F": 65, "F#": 66,
+    "G": 67, "G#": 68,
+    "A": 69, "A#": 70,
+    "B": 71,
+    "R": 0,  # Rest
+}
+MIDI_TO_NOTE = {
+    60: "C", 61: "C#",
+    62: "D", 63: "D#",
+    64: "E", 
+    65: "F", 66: "F#", 
+    67: "G", 68: "G#",
+    69: "A", 70: "A#",
+    71: "B",
+    0:  "R",  # Rest (no pitch)
+}
 
 # ----- Environment ----- #
 
@@ -193,7 +244,6 @@ type Env[V] = tuple[Binding[V], ...]  # this tuple type has arbitrary length
 
 from typing import Any
 emptyEnv: Env[Any] = ()  # the empty environment has no bindings
-
 
 def extendEnv[V](name: str, value: V, env: Env[V]) -> Env[V]:
     '''Extend the environment env with a new binding of name to value'''
@@ -213,6 +263,39 @@ def lookupEnv[V](name: str, env: Env[V]) -> V | None:
 
 class EvalError(Exception):
     pass
+
+def transpose_note(tune: Tune, steps: int) -> Tune:
+    if not isinstance(tune, Tune):
+        raise EvalError("Transpose note to be type Note")
+    
+    notes = []
+
+    # Go through the all notes in a tune
+    for note in tune.notes:
+        if note.pitch == "R":
+            notes.append(note)
+            continue
+
+        # Get the midi value of the pitch
+        midi = NOTE_TO_MIDI.get(note.pitch) # Might be an issue
+        if midi == None:
+            raise EvalError(f"Could not translate pitch: {note.pitch}")
+        
+        # Calcualte transposed midi value with steps
+        transpose_midi = midi + steps
+        
+        if transpose_midi < NOTE_TO_MIDI["C"]:
+            difference = NOTE_TO_MIDI["C"] - transpose_midi
+            transpose_midi = (NOTE_TO_MIDI["B"] - difference) + 1
+        elif transpose_midi > NOTE_TO_MIDI["B"]:
+            difference = transpose_midi - NOTE_TO_MIDI["B"]
+            transpose_midi = (difference + NOTE_TO_MIDI["C"]) - 1
+
+        # Get the new pitch from transposed midi value
+        new_pitch = MIDI_TO_NOTE[transpose_midi]
+        notes.append(Note(new_pitch, note.duration))
+
+    return Tune(notes)
 
 
 def eval(expr: Expr) -> Expr:
@@ -275,18 +358,15 @@ def evalInEnv(env: Env[Expr], expr: Expr) -> Expr:
             right = evalInEnv(env, r)
             if not isinstance(left, bool) or not isinstance(right, bool):
                 raise EvalError("And operator requires boolean operands")
-            elif isinstance(left, bool) and isinstance(right, bool):
-                return left and right
-            return False
+            return left and right
         
         case Or(l, r):
             left = evalInEnv(env, l)
             right = evalInEnv(env, r)
             if not isinstance(left, bool) or not isinstance(right, bool):
                 raise EvalError("Or operator requires boolean operands")
-            elif isinstance(left, bool) and isinstance(right, bool):
-                return left or right
-            return False
+            return left or right
+
         
         case Not(e):
             value = evalInEnv(env, e)
@@ -303,6 +383,8 @@ def evalInEnv(env: Env[Expr], expr: Expr) -> Expr:
         case Let(name, defn, body):
             if name == "":
                 raise EvalError("Name cannot be empty")
+            if not isinstance(name, str):
+                raise EvalError("Name must be a string")
 
             # Get expression of name
             new_defn = evalInEnv(env, defn)
@@ -388,6 +470,53 @@ def evalInEnv(env: Env[Expr], expr: Expr) -> Expr:
                     raise EvalError("If else must be int or bool")
                 return else_branch
 
+        # ----- Domain-specific extension (Tunes) ----- #
+        case Note(name, d):
+            if not isinstance(name, str):
+                raise EvalError("Note name must be a string")
+            if name not in NOTE_TO_MIDI:
+                raise EvalError(f"Invalid note name: {name}. Must be one of {list(NOTE_TO_MIDI.keys())}")
+
+            duration = evalInEnv(env, d)
+
+            # Check for duration
+            if not isinstance(duration, int) or duration <= 0:
+                raise EvalError("Note duration must be a positive integer")
+            
+            return Note(name, duration)
+        
+        case Tune(n):
+            if not isinstance(n, list):
+                raise EvalError("Seq must be a list of notes")
+            
+            result = []
+            # Check if all elements in the list are Note objects
+            for note in n:
+                if not isinstance(note, Note):
+                    raise EvalError("Seq must contain only Note objects")
+                note_value = evalInEnv(env, note)
+                result.append(note_value)
+            
+            return Tune(result)
+
+        case ConcatTunes(l, r):
+            left = evalInEnv(env, l)
+            right = evalInEnv(env, r)
+
+            if not isinstance(left, Tune) or not isinstance(right, Tune):
+                raise EvalError("ConcatTunes must be two Tunes")
+
+            return Tune(left.notes + right.notes)
+
+        case Transpose(t, s):
+            if not isinstance(t, Tune):
+                return EvalError("Transpose can only tune up or down Tunes")
+            
+            return transpose_note(t, s)
+
+        case _:
+            raise EvalError(f"unknown expression: {expr}")
+
 
 def run(expr: Expr) -> None:
     print(f"running: {expr}") # Might remove
@@ -398,6 +527,18 @@ def run(expr: Expr) -> None:
     except EvalError as err:
         print(err)
 
-a : Expr = If(Eq(Mul(Lit(2), Lit(4)), Lit(8)), Add(Lit(1), Lit(2)), Sub(Lit(3), Lit(4)))
+d : Expr = Tune([Note("E", Lit(4)), Note("D", Lit(4)), Note("E", Lit(4))])
+e : Expr = Tune([Note("F", Add(Lit(4), Lit(2)))])
+f : Expr = Tune([Note("R", If(Eq(Lit(1), Lit(1)), Lit(4), Lit(2)))])
+g : Expr = ConcatTunes(e, f)
+h : Expr = Transpose(f, 5)
+i : Expr = Transpose(d, -5)
+j : Expr = Transpose(e, 10)
 
-run(a)
+run(d)
+run(e)
+run(f)
+run(g)
+run(h)
+run(i)
+run(j)
