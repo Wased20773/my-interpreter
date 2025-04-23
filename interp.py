@@ -392,17 +392,25 @@ def evalInEnv(env: Env[Expr], expr: Expr) -> Expr:
         
         case And(l, r):
             left = evalInEnv(env, l)
-            right = evalInEnv(env, r)
-            if not isinstance(left, bool) or not isinstance(right, bool):
+            if not isinstance(left, bool):
                 raise EvalError("And operator requires boolean operands")
-            return left and right
+            if left == False:
+                return False
+            right = evalInEnv(env, r)
+            if not isinstance(right, bool):
+                raise EvalError("And operator requires boolean operands")
+            return right
         
         case Or(l, r):
             left = evalInEnv(env, l)
-            right = evalInEnv(env, r)
-            if not isinstance(left, bool) or not isinstance(right, bool):
+            if not isinstance(left, bool):
                 raise EvalError("Or operator requires boolean operands")
-            return left or right
+            if left == True:
+                return True
+            right = evalInEnv(env, r)
+            if not isinstance(right, bool):
+                raise EvalError("Or operator requires boolean operands")
+            return right
 
         case Not(e):
             value = evalInEnv(env, e)
@@ -434,13 +442,13 @@ def evalInEnv(env: Env[Expr], expr: Expr) -> Expr:
             # check if left and right are the same type
             # while also excepting mixed types, like int and bool
             if type(left) != type(right):
-                raise EvalError("cannot compare different types")
-            if isinstance(left, bool) and isinstance(right, bool):
+                return False  # Just return False if types don't match
+            if isinstance(left, int) and isinstance(right, int):
                 return left == right
-            elif isinstance(left, int) and isinstance(right, int):
+            elif isinstance(left, bool) and isinstance(right, bool):
                 return left == right
             else:
-                raise EvalError("Must compare using int, or bool types")
+                return EvalError("Must compare using int, or bool types")
             
         case Neq(l, r):
             left = evalInEnv(env, l)
@@ -459,7 +467,7 @@ def evalInEnv(env: Env[Expr], expr: Expr) -> Expr:
         case Lt(l, r):
             left = evalInEnv(env, l)
             right = evalInEnv(env, r)
-            if isinstance(left, int) and isinstance(right, int):
+            if type(left) == int and type(right) == int:
                 return left < right
             else:
                 raise EvalError("operand must be integer")
@@ -657,13 +665,13 @@ Hamster = Tune([
 ])
 
 
-run(d)
-run(e)
-run(f)
-run(g)
-run(h)
-run(i)
-run(j)
+# run(d)
+# run(e)
+# run(f)
+# run(g)
+# run(h)
+# run(i)
+# run(j)
 
-CreateMidiFile(evalInEnv(emptyEnv, song2), 0)
-PlayMidiFile()
+# CreateMidiFile(evalInEnv(emptyEnv, song2), 0)
+# PlayMidiFile()
