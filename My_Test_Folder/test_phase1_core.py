@@ -1,4 +1,9 @@
+import sys
+import os
 import unittest
+
+# Get the parent directory and add it to the path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from interp import Lit, Add, Sub, Mul, Div, Neg, And, Or, Not, Let, Name, Let, Eq, Neq, Lt, LorE, Gt, GorE, If, EvalError
 
@@ -372,3 +377,6 @@ class TestExpr(unittest.TestCase):
         with self.assertRaises(EvalError) as context:
             eval(If(Lit(False), Lit(5), Lit("Hello")))
         self.assertEqual(str(context.exception), "If else must be int or bool")
+
+if __name__ == '__main__':
+    unittest.main()
