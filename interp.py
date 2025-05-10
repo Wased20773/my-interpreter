@@ -348,10 +348,12 @@ def CreateMidiFile(tune: Tune, instrument: int):
 
 # ----- Evaluation ----- #
 
-def eval(expr: Expr) -> Expr:
+type Value = int | bool | Note | Tune
+
+def eval(expr: Expr) -> Value:
     return evalInEnv(emptyEnv, expr)
 
-def evalInEnv(env: Env[Expr], expr: Expr) -> Expr:
+def evalInEnv(env: Env[Expr], expr: Expr) -> Value:
     match expr:
         case Lit(v):
             return v
@@ -606,6 +608,13 @@ def run(expr: Expr) -> None:
 
     except EvalError as err:
         print("ERROR: ", err, "\n")
+
+
+math : Expr = Add(Lit(1), Mul(Lit(2), Lit(3)))
+run(math)
+
+letbinding : Expr = Let("x", Lit(1), Add(Name("x"), Lit(2)))
+run(letbinding)
 
 # ----- Demonstration of DSL and its Features ----- #
 a : Expr = Note("C", Lit(1))
