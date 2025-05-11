@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from midiutil import MIDIFile
 import os
 
-type Expr = Add | Sub | Mul | Div | Neg | Lit | And | Or | Not | Let | Name | Eq | Neq | Lt | LorE | Gt | GorE | If | Note | Tune | ConcatTunes | Transpose
+type Expr = Add | Sub | Mul | Div | Neg | Lit | And | Or | Not | Let | Name | Eq | Neq | Lt | LorE | Gt | GorE | If | Note | Tune | ConcatTunes | Transpose | Letfun | App
 
 # Added = ✅
 # ------ Core Language 1 ----- #
@@ -67,69 +67,72 @@ type Expr = Add | Sub | Mul | Div | Neg | Lit | And | Or | Not | Let | Name | Eq
 #   - ConcatTunes ✅
 #   - Transpose ✅
 
+# ----- Milestone 2 Requirements ----- #
+#   - Letfun
+#   - App
 
 @dataclass
-class Add:
+class Add():
     left: Expr
     right: Expr
     def __str__(self):
         return f"({self.left} + {self.right})"
 
 @dataclass
-class Sub:
+class Sub():
     left: Expr
     right: Expr
     def __str__(self):
         return f"({self.left} - {self.right})"
 
 @dataclass
-class Mul:
+class Mul():
     left: Expr
     right: Expr
     def __str__(self):
         return f"({self.left} * {self.right})"
 
 @dataclass
-class Div:
+class Div():
     left: Expr
     right: Expr
     def __str__(self):
         return f"({self.left} / {self.right})"
 
 @dataclass
-class Neg:
+class Neg():
     expr: Expr
     def __str__(self):
         return f"(-{self.expr})"
     
 @dataclass
-class Lit:
+class Lit():
     value: int | bool
     def __str__(self):
         return str(self.value)
 
 @dataclass
-class And:
+class And():
     left: Expr
     right: Expr
     def __str__(self):
         return f"({self.left} and {self.right})"
     
 @dataclass
-class Or:
+class Or():
     left: Expr
     right: Expr
     def __str__(self):
         return f"({self.left} or {self.right})"
     
 @dataclass
-class Not:
+class Not():
     subexpr: Expr
     def __str__(self):
         return f"(not {self.subexpr})"
     
 @dataclass
-class Let:
+class Let():
     varname: str
     defnexpr: Expr
     bodyexpr: Expr
@@ -137,14 +140,14 @@ class Let:
         return f"(let {self.varname} = {self.defnexpr} in {self.bodyexpr})"
     
 @dataclass
-class Name:
+class Name():
     varname: str
     def __str__(self):
         return self.varname
 
 # Equal to
 @dataclass
-class Eq:
+class Eq():
     left: Expr
     right: Expr
     def __str__(self):
@@ -152,7 +155,7 @@ class Eq:
     
 # Not equal to
 @dataclass
-class Neq:
+class Neq():
     left: Expr
     right: Expr
     def __str__(self):
@@ -160,7 +163,7 @@ class Neq:
     
 # Less than
 @dataclass
-class Lt:
+class Lt():
     left: Expr
     right: Expr
     def __str__(self):
@@ -168,7 +171,7 @@ class Lt:
     
 # Less than or Equal to
 @dataclass
-class LorE:
+class LorE():
     left: Expr
     right: Expr
     def __str__(self):
@@ -176,7 +179,7 @@ class LorE:
     
 # Greater than
 @dataclass
-class Gt:
+class Gt():
     left: Expr
     right: Expr
     def __str__(self):
@@ -184,7 +187,7 @@ class Gt:
 
 # Greater than or Equal to
 @dataclass
-class GorE:
+class GorE():
     left: Expr
     right: Expr
     def __str__(self):
@@ -192,16 +195,35 @@ class GorE:
     
 
 @dataclass
-class If:
+class If():
     cond: Expr
     then: Expr
     else_: Expr
     def __str__(self):
         return f"(if {self.cond} then {self.then} else {self.else_})"
+    
+@dataclass
+class Letfun():
+    name: str
+    params: list[str]
+    bodyexpr: Expr
+    inexpr: Expr
+    def __str__(self) -> str:
+        params_with_commas = ", ".join(self.params)
+        return f"letfun {self.name} ({params_with_commas}) = {self.bodyexpr} in {self.inexpr} end"
+    
+@dataclass
+class App():
+    fun: Expr
+    args: list[Expr]
+    def __str__(self) -> str:
+        args_with_comma = ", ".join(map(str, self.args))
+        return f"({self.fun} ({args_with_comma}))"
+
 
 # ----- Domain-specific extension (Tunes) ----- #
 @dataclass
-class Note:
+class Note():
     pitch: str # "C", "D", "E", "F", "G", "A", "B" or "R" for rest
     duration: Expr # in seconds (evaluated to an integer)
 
@@ -209,14 +231,14 @@ class Note:
         return f"Note(Pitch: {self.pitch}, Duration: {self.duration})"
 
 @dataclass
-class Tune:
+class Tune():
     notes: list[Note]
 
     def __str__(self):
         return f"Tune[{', '.join(str(note) for note in self.notes)}]"
 
 @dataclass
-class ConcatTunes:
+class ConcatTunes():
     left: Tune
     right: Tune
 
@@ -224,7 +246,7 @@ class ConcatTunes:
         return f"ConcatTunes({self.left}, {self.right})"
 
 @dataclass
-class Transpose:
+class Transpose():
     tune: Tune
     steps: Expr # in half-steps (evaluated to an integer)
 
@@ -279,6 +301,14 @@ def lookupEnv[V](name: str, env: Env[V]) -> V | None:
 
 class EvalError(Exception):
     pass
+
+type Value = int | bool | Note | Tune | Closure
+
+@dataclass
+class Closure:
+    params: list[str]
+    body: Expr
+    env: Env[Value]
 
 # ----- Tunes functions ----- #
 
@@ -347,8 +377,6 @@ def CreateMidiFile(tune: Tune, instrument: int):
     print(f"MIDI saves as {FILENAME}")
 
 # ----- Evaluation ----- #
-
-type Value = int | bool | Note | Tune
 
 def eval(expr: Expr) -> Value:
     return evalInEnv(emptyEnv, expr)
@@ -533,6 +561,34 @@ def evalInEnv(env: Env[Expr], expr: Expr) -> Value:
                 if not isinstance(else_branch, (int, bool)):
                     raise EvalError("If else must be int or bool")
                 return else_branch
+
+        case Letfun(n, p, b, i):
+            # Check for duplicate params
+            seen = [] # we will use this to check with "in" if the value is there twice
+            for param in p:
+                if param in seen:
+                    raise EvalError("Duplicate parameter names in function definition: {p}")
+                seen.append(i)
+            c = Closure(p, b, env)
+            newEnv = extendEnv(n, c, env)
+            return evalInEnv(newEnv, i)
+
+        case App(f, a):
+            fun = evalInEnv(env, f)
+            if not isinstance(fun, Closure):
+                raise EvalError("Attempted to call a non-function")
+            if len(fun.params) != len(a):
+                raise EvalError(f"Function expects {len(fun.params)} arguments but got {len(a)}")
+            args = []
+            for arg in a:
+                value = evalInEnv(env, arg)
+                args.append(value)
+            newEnv = fun.env
+            for i in range(len(fun.params)):
+                name = fun.params[i]
+                value = args[i]
+                newEnv = extendEnv(name, value, newEnv)
+            return evalInEnv(newEnv, fun.body)
 
         # ----- Domain-specific extension (Tunes) ----- #
         case Note(name, d):
