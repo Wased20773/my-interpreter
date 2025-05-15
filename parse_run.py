@@ -2,7 +2,7 @@ from interp import Lit, Add, Sub, Mul, Div, Neg, And, Or, Not, Let, Name, Eq, Lt
 Ifnz, Neq, LorE, Gt, GorE, Expr, Note, Tune, ConcatTunes, Transpose, run
 
 from lark import Lark, Token, ParseTree, Transformer
-from lark.exceptions import VisitError, UnexpectedInput
+from lark.exceptions import VisitError
 from pathlib import Path
 
 parser = Lark(Path('expr.lark').read_text(), start='expr1', parser='earley', ambiguity='explicit')
@@ -11,22 +11,21 @@ class ParseError(Exception):
     pass
 
 # uncomment code for detailed tree
-def just_parse(s: str) -> ParseTree | None:
+def just_parse(s:str) -> (Expr|None):   
+    '''Parses and pretty-prints an expression'''
     try:
-        t = parser.parse(s)
-        # print("raw: ", t)
-        # print("pretty:")
-        # print(t.pretty())
+        t = parse(s)
+        print("raw:", t)
+        print("pretty:")
+        print(t.pretty())
         ast = genAST(t)
-        print("raw AST: ", repr(ast))
+        print("raw AST:", repr(ast))  # use repr() to avoid str() pretty-printing
         return ast
     except AmbiguousParse:
         print("ambiguous parse")
-        return None
-    except UnexpectedInput as e:
+    except ParseError as e:
         print("parse error:")
         print(e)
-        return None
 
 # Used in kahoots with driver()
 def parse(s:str) -> ParseTree:
