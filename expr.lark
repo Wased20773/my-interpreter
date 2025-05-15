@@ -1,23 +1,30 @@
-%import common.INT -> INT
-%import common.CNAME -> ID
-%import common.WS
+TRUE: "true"
+FALSE: "false"
+ID: /(?!(true|false)\b)[a-zA-Z_][a-zA-Z0-9_]*/
 
+%import common.INT -> INT
+%import common.WS
 %ignore WS
 
-?expr1: "if" expr1 "then" expr1 "else" expr1 -> if
+
+?expr1: "if" expr1 "then" expr1 "else" expr1 -> if_expr
       | expr2
 
-?expr2: expr2 "||" expr4 -> or
+?expr2: expr2 "||" expr4 -> or_expr
       | expr3
 
-?expr3: expr3 "&&" expr4 -> and
+?expr3: expr3 "&&" expr4 -> and_expr
       | expr4
 
-?expr4: "!" expr4 -> not
+?expr4: "!" expr4 -> not_expr
       | expr5
 
 ?expr5: expr5 "==" expr6 -> eq
+      | expr5 "!=" expr6 -> neq
       | expr5 "<" expr6 -> lt
+      | expr5 "<=" expr6 -> lore
+      | expr5 ">" expr6 -> gt
+      | expr5 ">=" expr6 -> gore
       | expr6  
 
 ?expr6: expr6 "+" term  -> plus
@@ -31,9 +38,11 @@
 ?factor: "-" factor  -> neg
        | atom
 
-?atom: ID  -> id
+?atom: TRUE -> true
+     | FALSE -> false
+     | ID  -> id
      | INT -> int
-     | atom "(" arg_list ")" -> app
+     | ID "(" arg_list ")" -> app
      | "(" expr1 ")"
      | "let" ID "=" expr1 "in" expr1 "end" -> let
      | "letfun" ID "(" param_list ")" "=" expr1 "in" expr1 "end" -> letfun

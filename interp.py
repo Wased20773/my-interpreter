@@ -489,7 +489,7 @@ def evalInEnv(env: Env[Expr], expr: Expr) -> Value:
             newEnv = extendEnv(name, new_defn, env)
             return evalInEnv(newEnv, body)
         
-        case Eq(l, r):
+        case Eq(l, r): # Pretty sure i can just remove all if statements but the first one
             left = evalInEnv(env, l)
             right = evalInEnv(env, r)
             # check if left and right are the same type
