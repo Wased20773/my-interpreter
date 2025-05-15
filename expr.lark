@@ -4,26 +4,39 @@
 
 %ignore WS
 
-?expr: "ifnz" expr "then" expr "else" expr -> ifnz
-     | expr1
+?expr1: "if" expr1 "then" expr1 "else" expr1 -> if
+      | expr2
 
-?expr1: expr1 "+" term  -> plus
-     | expr1 "-" term -> minus
-     | term
+?expr2: expr2 "||" expr4 -> or
+      | expr3
+
+?expr3: expr3 "&&" expr4 -> and
+      | expr4
+
+?expr4: "!" expr4 -> not
+      | expr5
+
+?expr5: expr5 "==" expr6 -> eq
+      | expr5 "<" expr6 -> lt
+      | expr6  
+
+?expr6: expr6 "+" term  -> plus
+      | expr6 "-" term -> minus
+      | term
 
 ?term: term "*" factor -> times
      | term "/" factor -> divide
      | factor
 
 ?factor: "-" factor  -> neg
-       |  atom
+       | atom
 
 ?atom: ID  -> id
      | INT -> int
      | atom "(" arg_list ")" -> app
-     | "(" expr ")"    
-     | "let" ID "=" expr "in" expr "end" -> let
-     | "letfun" ID "(" param_list ")" "=" expr "in" expr "end" -> letfun
+     | "(" expr1 ")"
+     | "let" ID "=" expr1 "in" expr1 "end" -> let
+     | "letfun" ID "(" param_list ")" "=" expr1 "in" expr1 "end" -> letfun
 
 param_list: [ID ("," ID)*]
-arg_list: [expr ("," expr)*]
+arg_list: [expr1 ("," expr1)*]

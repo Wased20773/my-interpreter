@@ -5,7 +5,7 @@ from lark import Lark, Token, ParseTree, Transformer
 from lark.exceptions import VisitError
 from pathlib import Path
 
-parser = Lark(Path('expr.lark').read_text(), start='expr', parser='earley', ambiguity='explicit')
+parser = Lark(Path('expr.lark').read_text(), start='expr1', parser='earley', ambiguity='explicit')
 
 class ParseError(Exception):
     pass
