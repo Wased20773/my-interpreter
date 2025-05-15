@@ -1,0 +1,29 @@
+%import common.INT -> INT
+%import common.CNAME -> ID
+%import common.WS
+
+%ignore WS
+
+?expr: "ifnz" expr "then" expr "else" expr -> ifnz
+     | expr1
+
+?expr1: expr1 "+" term  -> plus
+     | expr1 "-" term -> minus
+     | term
+
+?term: term "*" factor -> times
+     | term "/" factor -> divide
+     | factor
+
+?factor: "-" factor  -> neg
+       |  atom
+
+?atom: ID  -> id
+     | INT -> int
+     | atom "(" arg_list ")" -> app
+     | "(" expr ")"    
+     | "let" ID "=" expr "in" expr "end" -> let
+     | "letfun" ID "(" param_list ")" "=" expr "in" expr "end" -> letfun
+
+param_list: [ID ("," ID)*]
+arg_list: [expr ("," expr)*]

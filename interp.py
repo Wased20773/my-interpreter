@@ -24,6 +24,7 @@ import os
 type Expr = Add | Sub | Mul | Div | Neg | Lit | And | Or | Not | Let | Name | Eq | Neq | Lt | LorE | Gt | GorE | If | Note | Tune | ConcatTunes | Transpose | Letfun | App
 
 # Added = ✅
+# ----- Milestone 1 Requirements ----- #
 # ------ Core Language 1 ----- #
 # Arithmitic
 #   - Lit(int) ✅
@@ -68,8 +69,10 @@ type Expr = Add | Sub | Mul | Div | Neg | Lit | And | Or | Not | Let | Name | Eq
 #   - Transpose ✅
 
 # ----- Milestone 2 Requirements ----- #
-#   - Letfun
-#   - App
+# ----- Core language to add ----- #
+#   - Ifnz ✅
+#   - Letfun ✅
+#   - App ✅
 
 @dataclass
 class Add():
@@ -691,51 +694,51 @@ def run(expr: Expr) -> None:
         print("ERROR: ", err, "\n")
 
 
-math : Expr = Add(Lit(1), Mul(Lit(2), Lit(3)))
-run(math)
+# math : Expr = Add(Lit(1), Mul(Lit(2), Lit(3)))
+# run(math)
 
-letbinding : Expr = Let("x", Lit(1), Add(Name("x"), Lit(2)))
-run(letbinding)
+# letbinding : Expr = Let("x", Lit(1), Add(Name("x"), Lit(2)))
+# run(letbinding)
 
-ifnz : Expr = Ifnz(Add(Lit(3), Neg(Lit(1))), Lit(True), Lit(False))
-run(ifnz)
+# ifnz : Expr = Ifnz(Add(Lit(3), Neg(Lit(1))), Lit(True), Lit(False))
+# run(ifnz)
 
-# ----- Demonstration of DSL and its Features ----- #
-a : Expr = Note("C", Lit(1))
-run (a)
-# Result: Note(Pitch: C, Duration: 1)
+# # ----- Demonstration of DSL and its Features ----- #
+# a : Expr = Note("C", Lit(1))
+# run (a)
+# # Result: Note(Pitch: C, Duration: 1)
 
-b : Expr = Note("C", Add(Lit(1), Lit(2)))
-run (b)
-# Result: Note(Pitch: C, Duration: 3)
+# b : Expr = Note("C", Add(Lit(1), Lit(2)))
+# run (b)
+# # Result: Note(Pitch: C, Duration: 3)
 
-c : Expr = Tune([a, b])
-run (c)
-# MIDI saves as answer.midi
+# c : Expr = Tune([a, b])
+# run (c)
+# # MIDI saves as answer.midi
 
-d : Expr = Tune([Note("A", Lit(1)), Note("B", Lit(2))])
-run (d)
-# MIDI saves as answer.midi
+# d : Expr = Tune([Note("A", Lit(1)), Note("B", Lit(2))])
+# run (d)
+# # MIDI saves as answer.midi
 
-e: Expr = ConcatTunes(c, d)
-run (e)
-# Result: Tune[Note(Pitch: C, Duration: 1), Note(Pitch: C, Duration: 3), Note(Pitch: A, Duration: 1), Note(Pitch: B, Duration: 2)]
-# MIDI saves as answer.midi
+# e: Expr = ConcatTunes(c, d)
+# run (e)
+# # Result: Tune[Note(Pitch: C, Duration: 1), Note(Pitch: C, Duration: 3), Note(Pitch: A, Duration: 1), Note(Pitch: B, Duration: 2)]
+# # MIDI saves as answer.midi
 
-f: Expr = Transpose(d, Lit(1))
-run (f)
-# Result: Tune[Note(Pitch: A#, Duration: 1), Note(Pitch: C, Duration: 2)]
-# MIDI saves as answer.midi
+# f: Expr = Transpose(d, Lit(1))
+# run (f)
+# # Result: Tune[Note(Pitch: A#, Duration: 1), Note(Pitch: C, Duration: 2)]
+# # MIDI saves as answer.midi
 
-# Simple song test
-twinkle_star : Expr = Tune([
-    Note("C", Lit(1)), Note("C", Lit(1)), Note("G", Lit(1)), Note("G", Lit(1)),
-    Note("A", Lit(1)), Note("A", Lit(1)), Note("G", Lit(2)),
+# # Simple song test
+# twinkle_star : Expr = Tune([
+#     Note("C", Lit(1)), Note("C", Lit(1)), Note("G", Lit(1)), Note("G", Lit(1)),
+#     Note("A", Lit(1)), Note("A", Lit(1)), Note("G", Lit(2)),
 
-    Note("F", Lit(1)), Note("F", Lit(1)), Note("E", Lit(1)), Note("E", Lit(1)),
-    Note("D", Lit(1)), Note("D", Lit(1)), Note("C", Lit(2)),
-])
-run(twinkle_star)
-# MIDI saves as answer.midi
+#     Note("F", Lit(1)), Note("F", Lit(1)), Note("E", Lit(1)), Note("E", Lit(1)),
+#     Note("D", Lit(1)), Note("D", Lit(1)), Note("C", Lit(2)),
+# ])
+# run(twinkle_star)
+# # MIDI saves as answer.midi
 
 
