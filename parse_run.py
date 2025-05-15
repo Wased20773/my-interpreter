@@ -10,12 +10,32 @@ parser = Lark(Path('expr.lark').read_text(), start='expr1', parser='earley', amb
 class ParseError(Exception):
     pass
 
+# uncomment code for detailed tree
 def parse_and_run(s: str) -> ParseTree:
+    try:
+        t = parser.parse(s)
+        # print("raw: ", t)
+        # print("pretty:")
+        # print(t.pretty())
+        ast = genAST(t)
+        # print("raw AST: ", repr(ast))
+        return run(ast)
+    except AmbiguousParse:
+        print("ambiguous parse")
+    except ParseError as e:
+        print("parse error:")
+        print(e)
+    except Exception as e:
+        raise ParseError(e)
+
+# Used in kahoots with driver()
+def parse(s:str) -> ParseTree:
     try:
         return parser.parse(s)
     except Exception as e:
         raise ParseError(e)
-    
+
+
 class AmbiguousParse(Exception):
     pass
 
@@ -86,7 +106,7 @@ class ToExpr(Transformer[Token, Expr]):
     def concat_tunes(self, args: tuple[Expr, Expr]) -> Expr:
         return ConcatTunes(args[0], args[1])
     def transpose(self, args: tuple[Expr, Expr]) -> Expr:
-        return Transpose(args[0], Lit(int(args[1])))
+        return Transpose(args[0], args[1])
     def _ambig(self,_) -> Expr:    # ambiguity marker
         raise AmbiguousParse()
 
@@ -103,7 +123,7 @@ def driver():
     while True:
         try:
             s = input('expr: ')
-            t = parse_and_run(s)
+            t = parse(s)
             print("raw: ", t)
             print("pretty:")
             print(t.pretty())
@@ -118,4 +138,31 @@ def driver():
         except EOFError:
             break
 
-driver()
+# For quick testing, uncomment below code
+# driver()
+
+# ----- Demonstration of DSL's concrete syntax ----- #
+parse_and_run("note C for 3 seconds")
+# Result: Note(Pitch: C, Duration: 3)
+
+parse_and_run("tune { note C for 1 seconds, note B for 2 seconds, note A for 3 seconds }")
+# MIDI saves as answer.midi
+
+parse_and_run("tune { note C for 1 seconds, note B for 2 seconds } ++ tune { note A for 3 seconds }")
+# Result: Tune[Note(Pitch: C, Duration: 1), Note(Pitch: B, Duration: 2), Note(Pitch: A, Duration: 3)]
+# MIDI saves as answer.midi
+
+parse_and_run("transpose tune { note C for 1 seconds, note B for 2 seconds, note A for 3 seconds} by 3")
+# Result: Tune[Note(Pitch: D#, Duration: 1), Note(Pitch: D, Duration: 2), Note(Pitch: C, Duration: 3)]
+# MIDI saves as answer.midi
+
+parse_and_run("transpose tune { note A for 1 seconds, note B for 2 seconds } by -1")
+# Result: Tune[Note(Pitch: G#, Duration: 1), Note(Pitch: A#, Duration: 2)]
+# MIDI saves as answer.midi
+
+parse_and_run("tune {}")
+# MIDI saves as answer.midi
+
+parse_and_run("tune { note E for 1 seconds } ++ tune { note F for 2 seconds }")
+# Result: Tune[Note(Pitch: E, Duration: 1), Note(Pitch: F, Duration: 2)]
+# MIDI saves as answer.midi

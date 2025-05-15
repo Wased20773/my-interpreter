@@ -55,10 +55,10 @@ NOTE_PITCH: "C" | "C#" | "D" | "D#" | "E" | "F" | "F#" | "G" | "G#" | "A" | "A#"
      | concat_tunes
      | transpose
 
-note: "note" NOTE_PITCH "for" expr1 "long" -> note
+note: "note" NOTE_PITCH "for" expr1 "seconds" -> note
 tune: "tune" "{" note_list "}" -> tune
 concat_tunes: tune "++" tune -> concat_tunes
-transpose: "transpose" tune "by" INT -> transpose
+transpose: "transpose" tune "by" expr1 -> transpose
 
 param_list: [ID ("," ID)*]
 arg_list: [expr1 ("," expr1)*]
