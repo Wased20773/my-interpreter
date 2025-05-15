@@ -203,6 +203,14 @@ class If():
         return f"(if {self.cond} then {self.then} else {self.else_})"
     
 @dataclass
+class Ifnz():
+    cond: Expr
+    then: Expr
+    else_: Expr
+    def __str__(self):
+        return f"(if {self.cond} != 0 then {self.then} else {self.else_})"
+
+@dataclass
 class Letfun():
     name: str
     params: list[str]
@@ -546,8 +554,8 @@ def evalInEnv(env: Env[Expr], expr: Expr) -> Value:
             else:
                 raise EvalError("operand must be integer")
             
-        case If(b, t, e):
-            cond = evalInEnv(env, b)
+        case If(c, t, e):
+            cond = evalInEnv(env, c)
             if not isinstance(cond, bool):
                 raise EvalError("If condition must be boolean")
 
@@ -562,6 +570,22 @@ def evalInEnv(env: Env[Expr], expr: Expr) -> Value:
                     raise EvalError("If else must be int or bool")
                 return else_branch
 
+        case Ifnz(c, t, e):
+            cond = evalInEnv(env, c)
+            if not isinstance(cond, int):
+                raise EvalError("Ifnz condition must be an int")
+            
+            if cond: # if condition is true
+                then_branch = evalInEnv(env, t)
+                if not isinstance(then_branch, (int, bool)):
+                    raise EvalError("Ifnz then must be int or bool")
+                return then_branch
+            else:   # condition is false
+                else_branch = evalInEnv(env, e)
+                if not isinstance(else_branch, (int, bool)):
+                    raise EvalError("Ifnz else must be int or bool")
+                return else_branch
+
         case Letfun(n, p, b, i):
             # Check for duplicate params
             seen = [] # we will use this to check with "in" if the value is there twice
@@ -571,6 +595,7 @@ def evalInEnv(env: Env[Expr], expr: Expr) -> Value:
                 seen.append(i)
             c = Closure(p, b, env)
             newEnv = extendEnv(n, c, env)
+            c.env = newEnv
             return evalInEnv(newEnv, i)
 
         case App(f, a):
@@ -671,6 +696,9 @@ run(math)
 
 letbinding : Expr = Let("x", Lit(1), Add(Name("x"), Lit(2)))
 run(letbinding)
+
+ifnz : Expr = Ifnz(Add(Lit(3), Neg(Lit(1))), Lit(True), Lit(False))
+run(ifnz)
 
 # ----- Demonstration of DSL and its Features ----- #
 a : Expr = Note("C", Lit(1))
