@@ -216,20 +216,20 @@ class Ifnz():
 @dataclass
 class Letfun():
     name: str
-    params: list[str]
+    params: str
     bodyexpr: Expr
     inexpr: Expr
     def __str__(self) -> str:
-        params_with_commas = ", ".join(self.params)
-        return f"letfun {self.name} ({params_with_commas}) = {self.bodyexpr} in {self.inexpr} end"
+        # params_with_commas = ", ".join(self.params)
+        return f"letfun {self.name} ({self.params}) = {self.bodyexpr} in {self.inexpr} end"
     
 @dataclass
 class App():
     fun: Expr
-    args: list[Expr]
+    args: Expr
     def __str__(self) -> str:
-        args_with_comma = ", ".join(map(str, self.args))
-        return f"({self.fun} ({args_with_comma}))"
+        # args_with_comma = ", ".join(map(str, self.args))
+        return f"({self.fun} ({self.args}))"
 
 
 # ----- Domain-specific extension (Tunes) ----- #
@@ -591,11 +591,11 @@ def evalInEnv(env: Env[Expr], expr: Expr) -> Value:
 
         case Letfun(n, p, b, i):
             # Check for duplicate params
-            seen = [] # we will use this to check with "in" if the value is there twice
-            for param in p:
-                if param in seen:
-                    raise EvalError("Duplicate parameter names in function definition: {p}")
-                seen.append(i)
+            # seen = [] # we will use this to check with "in" if the value is there twice
+            # for param in p:
+            #     if param in seen:
+            #         raise EvalError("Duplicate parameter names in function definition: {p}")
+            #     seen.append(i)
             c = Closure(p, b, env)
             newEnv = extendEnv(n, c, env)
             c.env = newEnv
@@ -605,17 +605,19 @@ def evalInEnv(env: Env[Expr], expr: Expr) -> Value:
             fun = evalInEnv(env, f)
             if not isinstance(fun, Closure):
                 raise EvalError("Attempted to call a non-function")
-            if len(fun.params) != len(a):
-                raise EvalError(f"Function expects {len(fun.params)} arguments but got {len(a)}")
-            args = []
-            for arg in a:
-                value = evalInEnv(env, arg)
-                args.append(value)
+            # if len(fun.params) != len(a):
+            #     raise EvalError(f"Function expects {len(fun.params)} arguments but got {len(a)}")
+            arg = evalInEnv(env, a)
+            # for arg in a:
+            #     value = evalInEnv(env, arg)
+            #     args.append(value)
             newEnv = fun.env
-            for i in range(len(fun.params)):
-                name = fun.params[i]
-                value = args[i]
-                newEnv = extendEnv(name, value, newEnv)
+            # for i in range(len(fun.params)):
+            #     name = fun.params[i]
+            #     value = args[i]
+            newEnv = extendEnv(fun.params, arg, newEnv)
+
+            
             return evalInEnv(newEnv, fun.body)
 
         # ----- Domain-specific extension (Tunes) ----- #

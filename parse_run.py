@@ -2,7 +2,7 @@ from interp import Lit, Add, Sub, Mul, Div, Neg, And, Or, Not, Let, Name, Eq, Lt
 Ifnz, Neq, LorE, Gt, GorE, Expr, Note, Tune, ConcatTunes, Transpose, run
 
 from lark import Lark, Token, ParseTree, Transformer
-from lark.exceptions import VisitError
+from lark.exceptions import VisitError, UnexpectedInput
 from pathlib import Path
 
 parser = Lark(Path('expr.lark').read_text(), start='expr1', parser='earley', ambiguity='explicit')
@@ -11,22 +11,22 @@ class ParseError(Exception):
     pass
 
 # uncomment code for detailed tree
-def parse_and_run(s: str) -> ParseTree:
+def just_parse(s: str) -> ParseTree | None:
     try:
         t = parser.parse(s)
         # print("raw: ", t)
         # print("pretty:")
         # print(t.pretty())
         ast = genAST(t)
-        # print("raw AST: ", repr(ast))
-        return run(ast)
+        print("raw AST: ", repr(ast))
+        return ast
     except AmbiguousParse:
         print("ambiguous parse")
-    except ParseError as e:
+        return None
+    except UnexpectedInput as e:
         print("parse error:")
         print(e)
-    except Exception as e:
-        raise ParseError(e)
+        return None
 
 # Used in kahoots with driver()
 def parse(s:str) -> ParseTree:
@@ -80,24 +80,30 @@ class ToExpr(Transformer[Token, Expr]):
         return Lit(True)
     def false(self, args: tuple[Token]) -> Expr:
         return Lit(False)
-    def ifnz(self,args: tuple[Expr, Expr, Expr]) -> Expr: # Not in test
+    def ifnz(self,args: tuple[Expr, Expr, Expr]) -> Expr:
         return Ifnz(args[0], args[1], args[2])
-    def param_list(self, args: tuple[Token]) -> list[str]:
-        if args and args[0] is None:
-            return []
-        return [token.value for token in args]
-    def arg_list(self, args: tuple[Expr]) -> list[Expr]:
-        if args and args[0] is None:
-            return []
-        return list(args)
+    # def param_list(self, args: tuple[Token]) -> str:
+    #     if args and args[0] is None:
+    #         return []
+    #     return args[0].value
+    # def arg_list(self, args: tuple[Expr]) -> Expr:
+    #     # if args and args[0] is None:
+    #     #     return []
+    #     return args[0]
     def note_list(self, args: tuple[Expr]) -> list[Expr]:
         if args and args[0] is None:
             return []
         return list(args)
-    def letfun(self, args: tuple[Token, list[str], Expr, Expr]) -> Expr:
-        return Letfun(args[0].value, args[1], args[2], args[3])
-    def app(self, args: tuple[Token, list[Expr]]) -> Expr:
-        return App(Name(args[0].value), args[1])    
+    def letfun(self, args: tuple[Token, Name, Expr, Expr]) -> Expr:
+        return Letfun(args[0].value, args[1].varname, args[2], args[3])
+    def app(self, args: tuple[Expr, Expr]) -> Expr:
+        if isinstance(args[0], Name):
+            return App(Name(args[0].varname), args[1])
+        elif isinstance(args[0], App):
+            return App(args[0], args[1])
+        else:
+            return App(args[0], args[1])
+
     def note(self, args: tuple[Token, Token]) -> Expr:
         pitch_token, duration_token = args
         return Note(pitch_token.value, Lit(int(duration_token.value)))
@@ -142,27 +148,23 @@ def driver():
 # driver()
 
 # ----- Demonstration of DSL's concrete syntax ----- #
-parse_and_run("note C for 3 seconds")
-# Result: Note(Pitch: C, Duration: 3)
+just_parse("note C for 3 seconds")
+# raw AST:  Note(pitch='C', duration=Lit(value=3))
 
-parse_and_run("tune { note C for 1 seconds, note B for 2 seconds, note A for 3 seconds }")
-# MIDI saves as answer.midi
+just_parse("tune { note C for 1 seconds, note B for 2 seconds, note A for 3 seconds }")
+# raw AST:  Tune(notes=[Note(pitch='C', duration=Lit(value=1)), Note(pitch='B', duration=Lit(value=2)), Note(pitch='A', duration=Lit(value=3))])
 
-parse_and_run("tune { note C for 1 seconds, note B for 2 seconds } ++ tune { note A for 3 seconds }")
-# Result: Tune[Note(Pitch: C, Duration: 1), Note(Pitch: B, Duration: 2), Note(Pitch: A, Duration: 3)]
-# MIDI saves as answer.midi
+just_parse("tune { note C for 1 seconds, note B for 2 seconds } ++ tune { note A for 3 seconds }")
+# raw AST:  ConcatTunes(left=Tune(notes=[Note(pitch='C', duration=Lit(value=1)), Note(pitch='B', duration=Lit(value=2))]), right=Tune(notes=[Note(pitch='A', duration=Lit(value=3))]))
 
-parse_and_run("transpose tune { note C for 1 seconds, note B for 2 seconds, note A for 3 seconds} by 3")
-# Result: Tune[Note(Pitch: D#, Duration: 1), Note(Pitch: D, Duration: 2), Note(Pitch: C, Duration: 3)]
-# MIDI saves as answer.midi
+just_parse("transpose tune { note C for 1 seconds, note B for 2 seconds, note A for 3 seconds} by 3")
+# raw AST:  Transpose(tune=Tune(notes=[Note(pitch='C', duration=Lit(value=1)), Note(pitch='B', duration=Lit(value=2)), Note(pitch='A', duration=Lit(value=3))]), steps=Lit(value=3))
 
-parse_and_run("transpose tune { note A for 1 seconds, note B for 2 seconds } by -1")
-# Result: Tune[Note(Pitch: G#, Duration: 1), Note(Pitch: A#, Duration: 2)]
-# MIDI saves as answer.midi
+just_parse("transpose tune { note A for 1 seconds, note B for 2 seconds } by -1")
+# raw AST:  Transpose(tune=Tune(notes=[Note(pitch='A', duration=Lit(value=1)), Note(pitch='B', duration=Lit(value=2))]), steps=Neg(expr=Lit(value=1)))
 
-parse_and_run("tune {}")
-# MIDI saves as answer.midi
+just_parse("tune {}")
+# raw AST:  Tune(notes=[])
 
-parse_and_run("tune { note E for 1 seconds } ++ tune { note F for 2 seconds }")
-# Result: Tune[Note(Pitch: E, Duration: 1), Note(Pitch: F, Duration: 2)]
-# MIDI saves as answer.midi
+just_parse("tune { note E for 1 seconds } ++ tune { note F for 2 seconds }")
+# raw AST:  ConcatTunes(left=Tune(notes=[Note(pitch='E', duration=Lit(value=1))]), right=Tune(notes=[Note(pitch='F', duration=Lit(value=2))]))

@@ -464,7 +464,7 @@ class TestParsing(unittest.TestCase):
     def test_85(self):
         self.parse(
             "letfun b(y) = c in x || d end",
-            Letfun("b", Name("y"), "c", Or(Name("x"), Name("d"))),
+            Letfun("b", "y", Name("c"), Or(Name("x"), Name("d"))),
         )
 
 class TestEval(unittest.TestCase):
