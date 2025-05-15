@@ -1,5 +1,5 @@
 from interp import Lit, Add, Sub, Mul, Div, Neg, And, Or, Not, Let, Name, Eq, Lt, If, Letfun, App, \
-Ifnz, Neq, LorE, Gt, GorE, Expr, run
+Ifnz, Neq, LorE, Gt, GorE, Expr, Note, Tune, ConcatTunes, Transpose, run
 
 from lark import Lark, Token, ParseTree, Transformer
 from lark.exceptions import VisitError
@@ -10,7 +10,7 @@ parser = Lark(Path('expr.lark').read_text(), start='expr1', parser='earley', amb
 class ParseError(Exception):
     pass
 
-def parse(s: str) -> ParseTree:
+def parse_and_run(s: str) -> ParseTree:
     try:
         return parser.parse(s)
     except Exception as e:
@@ -20,75 +20,73 @@ class AmbiguousParse(Exception):
     pass
 
 class ToExpr(Transformer[Token, Expr]):
-    def plus(self, args:tuple[Expr,Expr]) -> Expr:
-        return Add(args[0],args[1])
-    def minus(self, args:tuple[Expr,Expr]) -> Expr:
-        return Sub(args[0],args[1])
-    def times(self, args:tuple[Expr,Expr]) -> Expr:
-        return Mul(args[0],args[1])
-    def divide(self, args:tuple[Expr,Expr]) -> Expr:
-        return Div(args[0],args[1])
-    def neg(self, args:tuple[Expr]) -> Expr:
+    def plus(self, args: tuple[Expr, Expr]) -> Expr:
+        return Add(args[0], args[1])
+    def minus(self, args: tuple[Expr, Expr]) -> Expr:
+        return Sub(args[0], args[1])
+    def times(self, args: tuple[Expr, Expr]) -> Expr:
+        return Mul(args[0], args[1])
+    def divide(self, args: tuple[Expr, Expr]) -> Expr:
+        return Div(args[0], args[1])
+    def neg(self, args: tuple[Expr]) -> Expr:
         return Neg(args[0])
-    # Missing definitions (REQUIRED) ✅
-    #   - Or✅
-    #   - And✅
-    #   - Not✅
-    def or_expr(self, args:tuple[Expr, Expr]) -> Expr:
+    def or_expr(self, args: tuple[Expr, Expr]) -> Expr:
         return Or(args[0], args[1])
-    def and_expr(self, args:tuple[Expr, Expr]) -> Expr:
+    def and_expr(self, args: tuple[Expr, Expr]) -> Expr:
         return And(args[0], args[1])
-    def not_expr(self, args:tuple[Expr]) -> Expr:
+    def not_expr(self, args: tuple[Expr]) -> Expr:
         return Not(args[0])
-    def let(self, args:tuple[Token,Expr,Expr]) -> Expr:
-        return Let(args[0].value,args[1],args[2])
-    # Missing definitions (REQUIRED)✅
-    #   - Neq✅
-    #   - Eq✅
-    #   - Lt✅
-    #   - If✅
-    def neq(self, args:tuple[Expr, Expr, Expr]) -> Expr:
+    def let(self, args: tuple[Token, Expr, Expr]) -> Expr:
+        return Let(args[0].value, args[1], args[2])
+    def neq(self, args: tuple[Expr, Expr, Expr]) -> Expr:
         return Neq(args[0], args[1])
-    def eq(self, args:tuple[Expr, Expr]) -> Expr:
+    def eq(self, args: tuple[Expr, Expr]) -> Expr:
         return Eq(args[0], args[1])
-    def lt(self, args:tuple[Expr, Expr]) -> Expr:
+    def lt(self, args: tuple[Expr, Expr]) -> Expr:
         return Lt(args[0], args[1])
-    def if_expr(self, args:tuple[Expr, Expr, Expr]) -> Expr:
+    def if_expr(self, args: tuple[Expr, Expr, Expr]) -> Expr:
         return If(args[0], args[1], args[2])
-    # Missing definitions (NOT REQUIRED)✅
-    #   - LorE✅
-    #   - Gt✅
-    #   - GorE✅
-    def lore(self, args:tuple[Expr, Expr]) -> Expr:
+    def lore(self, args: tuple[Expr, Expr]) -> Expr:
         return LorE(args[0], args[1])
-    def gt(self, args:tuple[Expr, Expr]) -> Expr:
+    def gt(self, args: tuple[Expr, Expr]) -> Expr:
         return Gt(args[0], args[1])
-    def gore(self, args:tuple[Expr, Expr]) -> Expr:
+    def gore(self, args: tuple[Expr, Expr]) -> Expr:
         return GorE(args[0], args[1])
-    def id(self, args:tuple[Token]) -> Expr:
+    def id(self, args: tuple[Token]) -> Expr:
         return Name(args[0].value)
-    def int(self,args:tuple[Token]) -> Expr:
+    def int(self,args: tuple[Token]) -> Expr:
         return Lit(int(args[0].value))
-    def true(self, args:tuple[Token]) -> Expr:
+    def true(self, args: tuple[Token]) -> Expr:
         return Lit(True)
-    def false(self, args:tuple[Token]) -> Expr:
+    def false(self, args: tuple[Token]) -> Expr:
         return Lit(False)
-    def ifnz(self,args:tuple[Expr,Expr,Expr]) -> Expr: # Not in test
-        return Ifnz(args[0],args[1],args[2])
-    def param_list(self,args:tuple[Token]) -> list[str]:
+    def ifnz(self,args: tuple[Expr, Expr, Expr]) -> Expr: # Not in test
+        return Ifnz(args[0], args[1], args[2])
+    def param_list(self, args: tuple[Token]) -> list[str]:
         if args and args[0] is None:
             return []
         return [token.value for token in args]
-    def arg_list(self,args:tuple[Expr]) -> list[Expr]:
+    def arg_list(self, args: tuple[Expr]) -> list[Expr]:
         if args and args[0] is None:
             return []
         return list(args)
-    def letfun(self,args:tuple[Token,list[str],Expr,Expr]) -> Expr:
-        return Letfun(args[0].value,args[1],args[2],args[3])
-    def app(self,args:tuple[Token,list[Expr]]) -> Expr:
-        return App(Name(args[0].value),args[1])    
-    # Missing definitions (REQUIRED)
-    #   - DSL (Note, Tune, ConcatTunes, Transpose) ... Probably?
+    def note_list(self, args: tuple[Expr]) -> list[Expr]:
+        if args and args[0] is None:
+            return []
+        return list(args)
+    def letfun(self, args: tuple[Token, list[str], Expr, Expr]) -> Expr:
+        return Letfun(args[0].value, args[1], args[2], args[3])
+    def app(self, args: tuple[Token, list[Expr]]) -> Expr:
+        return App(Name(args[0].value), args[1])    
+    def note(self, args: tuple[Token, Token]) -> Expr:
+        pitch_token, duration_token = args
+        return Note(pitch_token.value, Lit(int(duration_token.value)))
+    def tune(self, args: list[Expr]) -> Expr:
+        return Tune(args[0])
+    def concat_tunes(self, args: tuple[Expr, Expr]) -> Expr:
+        return ConcatTunes(args[0], args[1])
+    def transpose(self, args: tuple[Expr, Expr]) -> Expr:
+        return Transpose(args[0], Lit(int(args[1])))
     def _ambig(self,_) -> Expr:    # ambiguity marker
         raise AmbiguousParse()
 
@@ -105,7 +103,7 @@ def driver():
     while True:
         try:
             s = input('expr: ')
-            t = parse(s)
+            t = parse_and_run(s)
             print("raw: ", t)
             print("pretty:")
             print(t.pretty())

@@ -2,6 +2,10 @@ TRUE: "true"
 FALSE: "false"
 ID: /(?!(true|false)\b)[a-zA-Z_][a-zA-Z0-9_]*/
 
+// ----- For DSL ----- //
+NOTE_PITCH: "C" | "C#" | "D" | "D#" | "E" | "F" | "F#" | "G" | "G#" | "A" | "A#" | "B" | "R"
+
+
 %import common.INT -> INT
 %import common.WS
 %ignore WS
@@ -46,6 +50,18 @@ ID: /(?!(true|false)\b)[a-zA-Z_][a-zA-Z0-9_]*/
      | "(" expr1 ")"
      | "let" ID "=" expr1 "in" expr1 "end" -> let
      | "letfun" ID "(" param_list ")" "=" expr1 "in" expr1 "end" -> letfun
+     | note
+     | tune
+     | concat_tunes
+     | transpose
+
+note: "note" NOTE_PITCH "for" expr1 "long" -> note
+tune: "tune" "{" note_list "}" -> tune
+concat_tunes: tune "++" tune -> concat_tunes
+transpose: "transpose" tune "by" INT -> transpose
 
 param_list: [ID ("," ID)*]
 arg_list: [expr1 ("," expr1)*]
+note_list: [note ("," note)*]
+
+
