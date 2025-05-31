@@ -10,8 +10,10 @@ NOTE_PITCH: "C" | "C#" | "D" | "D#" | "E" | "F" | "F#" | "G" | "G#" | "A" | "A#"
 %import common.WS
 %ignore WS
 
+?expr0: ID ":=" expr1 -> assign
+      | expr1
 
-?expr1: "if" expr1 "then" expr1 "else" expr1 -> if_expr
+?expr1: "if" expr0 "then" expr0 "else" expr0 -> if_expr
       | expr2
 
 ?expr2: expr2 "||" expr3 -> or_expr
@@ -44,24 +46,24 @@ NOTE_PITCH: "C" | "C#" | "D" | "D#" | "E" | "F" | "F#" | "G" | "G#" | "A" | "A#"
        | application
 
 ?application: atom
-            | application "(" expr1 ")"  -> app
+            | application "(" expr0 ")"  -> app
 
 ?atom: TRUE -> true
      | FALSE -> false
      | ID  -> id
      | INT -> int
-     | "(" expr1 ")"
-     | "let" ID "=" expr1 "in" expr1 "end" -> let
-     | "letfun" ID "(" expr1 ")" "=" expr1 "in" expr1 "end" -> letfun
+     | "(" expr0 ")"
+     | "let" ID "=" expr0 "in" expr0 "end" -> let
+     | "letfun" ID "(" expr0 ")" "=" expr0 "in" expr0 "end" -> letfun
      | note
      | tune
      | concat_tunes
      | transpose
 
-note: "note" NOTE_PITCH "for" expr1 "seconds" -> note
+note: "note" NOTE_PITCH "for" expr0 "seconds" -> note
 tune: "tune" "{" note_list "}" -> tune
 concat_tunes: tune "++" tune -> concat_tunes
-transpose: "transpose" tune "by" expr1 -> transpose
+transpose: "transpose" tune "by" expr0 -> transpose
 
 
 note_list: [note ("," note)*]

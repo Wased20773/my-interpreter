@@ -23,6 +23,7 @@ import os
 
 type Expr = Add | Sub | Mul | Div | Neg | Lit | And | Or | Not | Let | Name | Eq | Neq | Lt | LorE | Gt | GorE | If | Note | Tune | ConcatTunes | Transpose | Letfun | App
 
+
 # Added = ✅
 # ----- Milestone 1 Requirements ----- #
 # ------ Core Language 1 ----- #
@@ -73,6 +74,13 @@ type Expr = Add | Sub | Mul | Div | Neg | Lit | And | Or | Not | Let | Name | Eq
 #   - Ifnz ✅
 #   - Letfun ✅
 #   - App ✅
+# ----- Milestone 3 Requirements ----- #
+#   - Create Mutability
+#       - Name
+#       - Let
+#       - Letfun
+#       - App
+#       - Assign
 
 @dataclass
 class Add():
@@ -231,6 +239,12 @@ class App():
         # args_with_comma = ", ".join(map(str, self.args))
         return f"({self.fun} ({self.args}))"
 
+@dataclass
+class Assign():
+    name: str
+    expr: Expr
+    def __str__(self) -> str:
+        return f"{self.name} := {self.expr}"
 
 # ----- Domain-specific extension (Tunes) ----- #
 @dataclass
@@ -310,6 +324,15 @@ def lookupEnv[V](name: str, env: Env[V]) -> V | None:
         case _:
             return None
 
+# model memory locations as (mutable) singleton lists
+type Loc[V] = list[V] # always a singleton list
+def newLoc[V](value: V) -> Loc[V]:
+    return [value]
+def getLoc[V](loc: Loc[V]) -> V:
+    return loc[0]
+def setLoc[V](loc: Loc[V], value: V) -> None:
+    loc[0] = value
+
 class EvalError(Exception):
     pass
 
@@ -317,7 +340,7 @@ type Value = int | bool | Note | Tune | Closure
 
 @dataclass
 class Closure:
-    params: list[str]
+    param: str
     body: Expr
     env: Env[Value]
 
@@ -392,7 +415,7 @@ def CreateMidiFile(tune: Tune, instrument: int):
 def eval(expr: Expr) -> Value:
     return evalInEnv(emptyEnv, expr)
 
-def evalInEnv(env: Env[Expr], expr: Expr) -> Value:
+def evalInEnv(env: Env[Loc[Value]], expr: Expr) -> Value:
     match expr:
         case Lit(v):
             return v
@@ -475,7 +498,7 @@ def evalInEnv(env: Env[Expr], expr: Expr) -> Value:
             value = lookupEnv(name, env)
             if value is None:
                 raise EvalError(f"unbound Name: {name}")
-            return value
+            return getLoc(value)
         
         case Let(name, defn, body):
             if name == "":
@@ -483,11 +506,21 @@ def evalInEnv(env: Env[Expr], expr: Expr) -> Value:
             if not isinstance(name, str):
                 raise EvalError("Name must be a string")
 
-            # Get expression of name
-            new_defn = evalInEnv(env, defn)
-            # Extend env with name
-            newEnv = extendEnv(name, new_defn, env)
+            # Evaluate the definition and wrap it in a new location
+            defn_val = evalInEnv(env, defn)
+            loc = newLoc(defn_val)
+
+            # Extend the environment with the name pointing to the location
+            newEnv = extendEnv(name, loc, env)
+
+            # evaluate the body in the extended environment
             return evalInEnv(newEnv, body)
+
+            # # Get expression of name
+            # new_defn = evalInEnv(env, defn)
+            # # Extend env with name
+            # newEnv = extendEnv(name, new_defn, env)
+            # return evalInEnv(newEnv, body)
         
         case Eq(l, r): # Pretty sure i can just remove all if statements but the first one
             left = evalInEnv(env, l)
@@ -597,8 +630,8 @@ def evalInEnv(env: Env[Expr], expr: Expr) -> Value:
             #         raise EvalError("Duplicate parameter names in function definition: {p}")
             #     seen.append(i)
             c = Closure(p, b, env)
-            newEnv = extendEnv(n, c, env)
-            c.env = newEnv
+            l = newLoc(c)
+            newEnv = extendEnv(n, l, env)
             return evalInEnv(newEnv, i)
 
         case App(f, a):
@@ -611,14 +644,21 @@ def evalInEnv(env: Env[Expr], expr: Expr) -> Value:
             # for arg in a:
             #     value = evalInEnv(env, arg)
             #     args.append(value)
-            newEnv = fun.env
+            c: Closure = fun
+            l = newLoc(arg)
+            newEnv = extendEnv(c.param, l, c.env)
             # for i in range(len(fun.params)):
             #     name = fun.params[i]
             #     value = args[i]
-            newEnv = extendEnv(fun.params, arg, newEnv)
+            return evalInEnv(newEnv, c.body)
 
-            
-            return evalInEnv(newEnv, fun.body)
+        case Assign(n, e1):
+            l = lookupEnv(n, env)
+            if l is None:
+                raise EvalError(f"unbound name {n}")
+            v = evalInEnv(env, e1)
+            setLoc(l, v)
+            return v
 
         # ----- Domain-specific extension (Tunes) ----- #
         case Note(name, d):

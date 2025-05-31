@@ -1,11 +1,11 @@
-from interp import Lit, Add, Sub, Mul, Div, Neg, And, Or, Not, Let, Name, Eq, Lt, If, Letfun, App, \
+from interp import Lit, Add, Sub, Mul, Div, Neg, And, Or, Not, Let, Name, Eq, Lt, If, Letfun, App, Assign, \
 Ifnz, Neq, LorE, Gt, GorE, Expr, Note, Tune, ConcatTunes, Transpose, run
 
 from lark import Lark, Token, ParseTree, Transformer
 from lark.exceptions import VisitError
 from pathlib import Path
 
-parser = Lark(Path('expr.lark').read_text(), start='expr1', parser='earley', ambiguity='explicit')
+parser = Lark(Path('expr.lark').read_text(), start='expr0', parser='earley', ambiguity='explicit')
 
 class ParseError(Exception):
     pass
@@ -102,7 +102,9 @@ class ToExpr(Transformer[Token, Expr]):
             return App(args[0], args[1])
         else:
             return App(args[0], args[1])
-
+    def assign(self, args: tuple[Token, Expr]) -> Expr:
+        return Assign(args[0].value, args[1])
+    # --- DSL --- #
     def note(self, args: tuple[Token, Token]) -> Expr:
         pitch_token, duration_token = args
         return Note(pitch_token.value, Lit(int(duration_token.value)))
@@ -144,26 +146,26 @@ def driver():
             break
 
 # For quick testing, uncomment below code
-# driver()
+driver()
 
 # ----- Demonstration of DSL's concrete syntax ----- #
-just_parse("note C for 3 seconds")
-# raw AST:  Note(pitch='C', duration=Lit(value=3))
+# just_parse("note C for 3 seconds")
+# # raw AST:  Note(pitch='C', duration=Lit(value=3))
 
-just_parse("tune { note C for 1 seconds, note B for 2 seconds, note A for 3 seconds }")
-# raw AST:  Tune(notes=[Note(pitch='C', duration=Lit(value=1)), Note(pitch='B', duration=Lit(value=2)), Note(pitch='A', duration=Lit(value=3))])
+# just_parse("tune { note C for 1 seconds, note B for 2 seconds, note A for 3 seconds }")
+# # raw AST:  Tune(notes=[Note(pitch='C', duration=Lit(value=1)), Note(pitch='B', duration=Lit(value=2)), Note(pitch='A', duration=Lit(value=3))])
 
-just_parse("tune { note C for 1 seconds, note B for 2 seconds } ++ tune { note A for 3 seconds }")
-# raw AST:  ConcatTunes(left=Tune(notes=[Note(pitch='C', duration=Lit(value=1)), Note(pitch='B', duration=Lit(value=2))]), right=Tune(notes=[Note(pitch='A', duration=Lit(value=3))]))
+# just_parse("tune { note C for 1 seconds, note B for 2 seconds } ++ tune { note A for 3 seconds }")
+# # raw AST:  ConcatTunes(left=Tune(notes=[Note(pitch='C', duration=Lit(value=1)), Note(pitch='B', duration=Lit(value=2))]), right=Tune(notes=[Note(pitch='A', duration=Lit(value=3))]))
 
-just_parse("transpose tune { note C for 1 seconds, note B for 2 seconds, note A for 3 seconds} by 3")
-# raw AST:  Transpose(tune=Tune(notes=[Note(pitch='C', duration=Lit(value=1)), Note(pitch='B', duration=Lit(value=2)), Note(pitch='A', duration=Lit(value=3))]), steps=Lit(value=3))
+# just_parse("transpose tune { note C for 1 seconds, note B for 2 seconds, note A for 3 seconds} by 3")
+# # raw AST:  Transpose(tune=Tune(notes=[Note(pitch='C', duration=Lit(value=1)), Note(pitch='B', duration=Lit(value=2)), Note(pitch='A', duration=Lit(value=3))]), steps=Lit(value=3))
 
-just_parse("transpose tune { note A for 1 seconds, note B for 2 seconds } by -1")
-# raw AST:  Transpose(tune=Tune(notes=[Note(pitch='A', duration=Lit(value=1)), Note(pitch='B', duration=Lit(value=2))]), steps=Neg(expr=Lit(value=1)))
+# just_parse("transpose tune { note A for 1 seconds, note B for 2 seconds } by -1")
+# # raw AST:  Transpose(tune=Tune(notes=[Note(pitch='A', duration=Lit(value=1)), Note(pitch='B', duration=Lit(value=2))]), steps=Neg(expr=Lit(value=1)))
 
-just_parse("tune {}")
-# raw AST:  Tune(notes=[])
+# just_parse("tune {}")
+# # raw AST:  Tune(notes=[])
 
-just_parse("tune { note E for 1 seconds } ++ tune { note F for 2 seconds }")
+# just_parse("tune { note E for 1 seconds } ++ tune { note F for 2 seconds }")
 # raw AST:  ConcatTunes(left=Tune(notes=[Note(pitch='E', duration=Lit(value=1))]), right=Tune(notes=[Note(pitch='F', duration=Lit(value=2))]))
