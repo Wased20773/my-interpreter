@@ -1,5 +1,5 @@
 from interp import Lit, Add, Sub, Mul, Div, Neg, And, Or, Not, Let, Name, Eq, Lt, If, Letfun, App, Assign, Seq, Show, Read, \
-Ifnz, Neq, LorE, Gt, GorE, Expr, Note, Tune, ConcatTunes, Transpose, Repeat, Volume, run
+Ifnz, Neq, LorE, Gt, GorE, Expr, Note, Tune, ConcatTunes, Transpose, Repeat, Volume, Track, run
 
 from lark import Lark, Token, ParseTree, Transformer
 from lark.exceptions import VisitError
@@ -124,6 +124,8 @@ class ToExpr(Transformer[Token, Expr]):
         return Repeat(args[0], args[1])
     def volume(self, args: tuple[Expr, Expr]) -> Expr:
         return Volume(args[0], args[1])
+    def track(self, args: list[Expr]) -> Expr:
+        return Track(args[0])
     def _ambig(self,_) -> Expr:    # ambiguity marker
         raise AmbiguousParse()
 

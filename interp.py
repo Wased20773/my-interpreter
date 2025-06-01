@@ -321,6 +321,12 @@ class Volume():
     def __str__(self):
         return f"Volume({self.expr}, {self.level})"
 
+@dataclass
+class Track():
+    tracks: list[Expr]
+    def __str__(self):
+        return f"Track({', '.join(str(track) for track in self.tracks)})"
+
 NOTE_TO_MIDI = {
     "C": 60, "C#": 61,
     "D": 62, "D#": 63,
@@ -423,34 +429,39 @@ def TransposeNote(tune: Tune, steps: int) -> Tune:
     return Tune(notes)
 
 
-def CreateMidiFile(tune: Tune, instrument: int):
+def CreateMidiFile(tune: Tune | Track, instrument: int):
     midi = MIDIFile(1)
     # Set up MIDI structure 
     track = 0
     time = 0
     channel = instrument
 
-    tempo = DEFAULT_TEMPO
-    midi.addTempo(track, time, tempo)
-    midi.addProgramChange(track, channel, time, instrument)
+    if type(tune) == Track:
+        print("Creating MIDI file for Track")
+    elif type(tune) == Tune:
+        print("Creating MIDI file for Tune")
+
+    # tempo = DEFAULT_TEMPO
+    # midi.addTempo(track, time, tempo)
+    # midi.addProgramChange(track, channel, time, instrument)
     
     # Must flatten Tune first before writing notes
-    flat_notes = flatten_tune(tune)
+    # flat_notes = flatten_tune(tune)
 
-    for note in flat_notes:
-        duration = note.duration
+    # for note in flat_notes:
+    #     duration = note.duration
 
-        if note.pitch == "R":
-            time += duration
-            continue
+    #     if note.pitch == "R":
+    #         time += duration
+    #         continue
 
-        pitch = NOTE_TO_MIDI[note.pitch]
-        midi.addNote(track, channel, pitch, time, duration, note.volume)
-        time += duration
+    #     pitch = NOTE_TO_MIDI[note.pitch]
+    #     midi.addNote(track, channel, pitch, time, duration, note.volume)
+    #     time += duration
     
-    with open(FILENAME, "wb") as output_file:
-        midi.writeFile(output_file)
-    print(f"MIDI saves as {FILENAME}")
+    # with open(FILENAME, "wb") as output_file:
+    #     midi.writeFile(output_file)
+    # print(f"MIDI saves as {FILENAME}")
 
 def flatten_tune(tune: Tune) -> list[Note]:
     new_Tune = []
@@ -820,6 +831,14 @@ def evalInEnv(env: Env[Loc[Value]], expr: Expr) -> Value:
 
             return Note(t_v.pitch, t_v.duration, volume=l_v)
 
+        case Track(t):
+            return Track(t)
+            # # evaluate t path
+            # t_v = evalInEnv(env, t)
+            # if not isinstance(t_v, (Tune, Track)):
+            #     raise EvalError("Track expects a Tune")
+            # return # TODO RETURN EVAUATED TRACK
+
         case _:
             raise EvalError(f"unknown expression: {expr}")
 
@@ -832,7 +851,7 @@ def run(expr: Expr) -> None:
             case int() | bool():
                 print(f"Result: {result}\n")
             
-            case Tune():
+            case Tune() | Track():
                 if type(expr) == ConcatTunes or type(expr) == Transpose:
                     print(f"Result: {result}")
 

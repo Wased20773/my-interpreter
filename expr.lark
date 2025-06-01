@@ -1,6 +1,6 @@
 TRUE: "true"
 FALSE: "false"
-ID: /(?!(true|false|read)\b)[a-zA-Z_][a-zA-Z0-9_]*/
+ID: /(?!(true|false|read|track)\b)[a-zA-Z_][a-zA-Z0-9_]*/
 
 // ----- For DSL ----- //
 NOTE_PITCH: "C" | "C#" | "D" | "D#" | "E" | "F" | "F#" | "G" | "G#" | "A" | "A#" | "B" | "R"
@@ -65,6 +65,7 @@ NOTE_PITCH: "C" | "C#" | "D" | "D#" | "E" | "F" | "F#" | "G" | "G#" | "A" | "A#"
      | transpose
      | repeat
      | volume
+     | track
 
 // ----- For DSL ----- //
 note: "note" NOTE_PITCH "for" expr0 "seconds" -> note
@@ -73,6 +74,7 @@ concat_tunes: tune "++" tune -> concat_tunes
 transpose: "transpose" tune "by" expr0 -> transpose
 repeat: "repeat" "(" tunes "," expr0 ")" -> repeat 
 volume: "volume" "(" tunes "," expr0 ")" -> volume
+track: "track" "(" note_list ")" -> track
 
 note_list: [tunes ("," tunes)*]
       
