@@ -1,5 +1,5 @@
-from interp import Lit, Add, Sub, Mul, Div, Neg, And, Or, Not, Let, Name, Eq, Lt, If, Letfun, App, Assign, \
-Ifnz, Neq, LorE, Gt, GorE, Expr, Note, Tune, ConcatTunes, Transpose, run
+from interp import Lit, Add, Sub, Mul, Div, Neg, And, Or, Not, Let, Name, Eq, Lt, If, Letfun, App, Assign, Seq, Show, Read, \
+Ifnz, Neq, LorE, Gt, GorE, Expr, Note, Tune, ConcatTunes, Transpose, Repeat, Volume, run
 
 from lark import Lark, Token, ParseTree, Transformer
 from lark.exceptions import VisitError
@@ -104,6 +104,12 @@ class ToExpr(Transformer[Token, Expr]):
             return App(args[0], args[1])
     def assign(self, args: tuple[Token, Expr]) -> Expr:
         return Assign(args[0].value, args[1])
+    def seq(self, args: tuple[Expr, Expr]) -> Expr:
+        return Seq(args[0], args[1])
+    def show(self, args: tuple[Expr]) -> Expr:
+        return Show(args[0])
+    def read(self, args) -> Expr:
+        return Read()
     # --- DSL --- #
     def note(self, args: tuple[Token, Token]) -> Expr:
         pitch_token, duration_token = args
@@ -114,6 +120,10 @@ class ToExpr(Transformer[Token, Expr]):
         return ConcatTunes(args[0], args[1])
     def transpose(self, args: tuple[Expr, Expr]) -> Expr:
         return Transpose(args[0], args[1])
+    def repeat(self, args: tuple[Expr, Expr]) -> Expr:
+        return Repeat(args[0], args[1])
+    def volume(self, args: tuple[Expr, Expr]) -> Expr:
+        return Volume(args[0], args[1])
     def _ambig(self,_) -> Expr:    # ambiguity marker
         raise AmbiguousParse()
 

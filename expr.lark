@@ -1,19 +1,22 @@
 TRUE: "true"
 FALSE: "false"
-ID: /(?!(true|false)\b)[a-zA-Z_][a-zA-Z0-9_]*/
+ID: /(?!(true|false|read)\b)[a-zA-Z_][a-zA-Z0-9_]*/
 
 // ----- For DSL ----- //
 NOTE_PITCH: "C" | "C#" | "D" | "D#" | "E" | "F" | "F#" | "G" | "G#" | "A" | "A#" | "B" | "R"
-
+//
 
 %import common.INT -> INT
 %import common.WS
 %ignore WS
 
-?expr0: ID ":=" expr1 -> assign
+
+?expr0: expr1 ";" expr0 -> seq
       | expr1
 
-?expr1: "if" expr0 "then" expr0 "else" expr0 -> if_expr
+?expr1: ID ":=" expr1 -> assign
+      | "show" expr1 -> show
+      | "if" expr0 "then" expr0 "else" expr0 -> if_expr
       | expr2
 
 ?expr2: expr2 "||" expr3 -> or_expr
@@ -55,15 +58,26 @@ NOTE_PITCH: "C" | "C#" | "D" | "D#" | "E" | "F" | "F#" | "G" | "G#" | "A" | "A#"
      | "(" expr0 ")"
      | "let" ID "=" expr0 "in" expr0 "end" -> let
      | "letfun" ID "(" expr0 ")" "=" expr0 "in" expr0 "end" -> letfun
+     | "read" -> read
      | note
      | tune
      | concat_tunes
      | transpose
+     | repeat
+     | volume
 
+// ----- For DSL ----- //
 note: "note" NOTE_PITCH "for" expr0 "seconds" -> note
 tune: "tune" "{" note_list "}" -> tune
 concat_tunes: tune "++" tune -> concat_tunes
 transpose: "transpose" tune "by" expr0 -> transpose
+repeat: "repeat" "(" tunes "," expr0 ")" -> repeat 
+volume: "volume" "(" tunes "," expr0 ")" -> volume
 
-
-note_list: [note ("," note)*]
+note_list: [tunes ("," tunes)*]
+      
+?tunes: note
+      | tune
+      | repeat
+      | volume
+//

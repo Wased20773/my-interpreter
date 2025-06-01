@@ -21,7 +21,11 @@ from dataclasses import dataclass
 from midiutil import MIDIFile
 import os
 
-type Expr = Add | Sub | Mul | Div | Neg | Lit | And | Or | Not | Let | Name | Eq | Neq | Lt | LorE | Gt | GorE | If | Note | Tune | ConcatTunes | Transpose | Letfun | App
+type Expr = Add | Sub | Mul | Div | Neg | Lit \
+    | And | Or | Not \
+    | Let | Letfun | If | Assign | Seq | Show | Name | App \
+    | Eq | Neq | Lt | LorE | Gt | GorE \
+    | Note | Tune | ConcatTunes | Transpose | Repeat | Volume
 
 
 # Added = ✅
@@ -76,11 +80,19 @@ type Expr = Add | Sub | Mul | Div | Neg | Lit | And | Or | Not | Let | Name | Eq
 #   - App ✅
 # ----- Milestone 3 Requirements ----- #
 #   - Create Mutability
-#       - Name
-#       - Let
-#       - Letfun
-#       - App
-#       - Assign
+#       - Name ✅
+#       - Let ✅
+#       - Letfun ✅
+#       - App ✅
+#       - Assign ✅
+#   - Create Seq ✅
+#   - new operations
+#       - Read ✅
+#       - Show ✅
+#   - new DSL operators
+#       - Repeat ✅
+#       - Volume
+#       - Tempo
 
 @dataclass
 class Add():
@@ -246,19 +258,38 @@ class Assign():
     def __str__(self) -> str:
         return f"{self.name} := {self.expr}"
 
+@dataclass
+class Seq():
+    expr1: Expr
+    expr2: Expr
+    def __str__(self) -> str:
+        return f"({self.expr1}; {self.expr2})"
+
+@dataclass
+class Show():
+    expr: Expr
+
+@dataclass
+class Read():
+    def __str__(self) -> str:
+        return "read"
+
 # ----- Domain-specific extension (Tunes) ----- #
+
+FILENAME = "answer.midi"
+DEFAULT_TEMPO = 200 # 200 BPM
+DEFAULT_VOLUME = 100
 @dataclass
 class Note():
     pitch: str # "C", "D", "E", "F", "G", "A", "B" or "R" for rest
     duration: Expr # in seconds (evaluated to an integer)
-
+    volume: int = DEFAULT_VOLUME
     def __str__(self):
-        return f"Note(Pitch: {self.pitch}, Duration: {self.duration})"
+        return f"Note(Pitch: {self.pitch}, Duration: {self.duration}, Volume: {self.volume})"
 
 @dataclass
 class Tune():
     notes: list[Note]
-
     def __str__(self):
         return f"Tune[{', '.join(str(note) for note in self.notes)}]"
 
@@ -266,7 +297,6 @@ class Tune():
 class ConcatTunes():
     left: Tune
     right: Tune
-
     def __str__(self):
         return f"ConcatTunes({self.left}, {self.right})"
 
@@ -274,9 +304,22 @@ class ConcatTunes():
 class Transpose():
     tune: Tune
     steps: Expr # in half-steps (evaluated to an integer)
-
     def __str__(self):
         return f"Transpose({self.tune}, {self.steps})"
+
+@dataclass
+class Repeat():
+    tune: Tune | Note
+    repetition: Expr
+    def __str__(self):
+        return f"Repeat({self.tune}, {self.repetition})"
+
+@dataclass
+class Volume():
+    expr: Expr
+    level: Expr
+    def __str__(self):
+        return f"Volume({self.expr}, {self.level})"
 
 NOTE_TO_MIDI = {
     "C": 60, "C#": 61,
@@ -379,36 +422,47 @@ def TransposeNote(tune: Tune, steps: int) -> Tune:
 
     return Tune(notes)
 
-FILENAME = "answer.midi"
-DEFAULT_TEMPO = 200 # 200 BPM
-DEFAULT_VOLUME = 100
+
 def CreateMidiFile(tune: Tune, instrument: int):
     midi = MIDIFile(1)
     # Set up MIDI structure 
     track = 0
     time = 0
     channel = instrument
-    volume = DEFAULT_VOLUME
 
     tempo = DEFAULT_TEMPO
     midi.addTempo(track, time, tempo)
-
     midi.addProgramChange(track, channel, time, instrument)
     
-    for note in tune.notes:
+    # Must flatten Tune first before writing notes
+    flat_notes = flatten_tune(tune)
+
+    for note in flat_notes:
         duration = note.duration
 
         if note.pitch == "R":
-            time = time + duration
+            time += duration
             continue
 
         pitch = NOTE_TO_MIDI[note.pitch]
-        midi.addNote(track, channel, pitch, time, duration, volume)
+        midi.addNote(track, channel, pitch, time, duration, note.volume)
         time += duration
     
     with open(FILENAME, "wb") as output_file:
         midi.writeFile(output_file)
     print(f"MIDI saves as {FILENAME}")
+
+def flatten_tune(tune: Tune) -> list[Note]:
+    new_Tune = []
+    for note in tune.notes:
+        match note:
+            case Note():
+                new_Tune.append(note)
+            case Tune():
+                new_Tune.extend(flatten_tune(note))
+            case _:
+                raise EvalError("Tunes contains invalid type")
+    return new_Tune
 
 # ----- Evaluation ----- #
 
@@ -659,6 +713,34 @@ def evalInEnv(env: Env[Loc[Value]], expr: Expr) -> Value:
             v = evalInEnv(env, e1)
             setLoc(l, v)
             return v
+        
+        case Seq(e1, e2):
+            evalInEnv(env, e1)
+            return evalInEnv(env, e2)
+
+        case Show(e):
+            # evaluate e to a value v
+            v = evalInEnv(env, e)
+            # Show v in a suitable way
+            match v:
+                case int() | bool():
+                    print("showing int or bool: ", v)
+                case Note():
+                    print("showing midi note")
+                case Tune():
+                    print("showing midi file")
+                    CreateMidiFile(v, 0)
+                    os.startfile(FILENAME)
+            return v
+        
+        case Read():
+            user_input = input("Enter an integer >> ")
+            # try if the input is int, else throw exception
+            try:
+                return int(user_input)
+            except ValueError:
+                raise EvalError(f"Expected an integer, got: {user_input}")
+                
 
         # ----- Domain-specific extension (Tunes) ----- #
         case Note(name, d):
@@ -677,13 +759,13 @@ def evalInEnv(env: Env[Loc[Value]], expr: Expr) -> Value:
         
         case Tune(n):
             if not isinstance(n, list):
-                raise EvalError("Seq must be a list of notes")
+                raise EvalError("Tunes must be a list of notes")
             
             result = []
-            # Check if all elements in the list are Note objects
+            # Check if all elements in the list are valid objects
             for note in n:
-                if not isinstance(note, Note):
-                    raise EvalError("Seq must contain only Note objects")
+                if not isinstance(note, (Tune, Note, Repeat, Volume)):
+                    raise EvalError("Tunes must contain only Tune or Note objects")
                 note_value = evalInEnv(env, note)
                 result.append(note_value)
             
@@ -708,6 +790,35 @@ def evalInEnv(env: Env[Loc[Value]], expr: Expr) -> Value:
                 raise EvalError("Transpose steps must be an integer")
             
             return TransposeNote(evalInEnv(env, t), steps)
+
+        case Repeat(t, r):
+            # evaluate Tunes (t) and Expr (r) before repeating
+            t_v = evalInEnv(env, t)
+            r_v = evalInEnv(env, r)
+            # check if either values are of correct types
+            if not isinstance(t_v, (Tune, Note, Volume)):
+                raise EvalError("Repeat expects a Tune or Note")
+            if not isinstance(r_v, int):
+                raise EvalError("Repeat expects an int for repetition")
+            # return the Tune or Note that is to be repeated on r times
+            match t_v:
+                case Tune(n):
+                    return Tune(n * r_v)
+                case Note(name, d):
+                    return Tune([Note(name, d)] * r_v)
+
+        case Volume(t, l):
+            # evaluate Note (t) and Expr (l) before changing volume
+            t_v = evalInEnv(env, t)
+            l_v = evalInEnv(env, l)
+            if not isinstance(t_v, Note):
+                raise EvalError("Volume expects a Note")
+            if not isinstance(l_v, int):
+                raise EvalError("Volume expects an integer for its volume level")
+            if not (0 <= l_v <= 127):
+                raise EvalError("volume level must be between 0 and 127")
+
+            return Note(t_v.pitch, t_v.duration, volume=l_v)
 
         case _:
             raise EvalError(f"unknown expression: {expr}")
