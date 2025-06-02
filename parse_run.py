@@ -114,8 +114,8 @@ class ToExpr(Transformer[Token, Expr]):
     def note(self, args: tuple[Token, Token]) -> Expr:
         pitch_token, duration_token = args
         return Note(pitch_token.value, Lit(int(duration_token.value)))
-    def tune(self, args: list[Expr]) -> Expr:
-        return Tune(args[0])
+    def tune(self, args: list[Expr, Expr]) -> Expr:
+        return Tune(args[0], args[1])
     def concat_tunes(self, args: tuple[Expr, Expr]) -> Expr:
         return ConcatTunes(args[0], args[1])
     def transpose(self, args: tuple[Expr, Expr]) -> Expr:

@@ -277,8 +277,9 @@ class Read():
 # ----- Domain-specific extension (Tunes) ----- #
 
 FILENAME = "answer.midi"
-DEFAULT_TEMPO = 200 # 200 BPM
-DEFAULT_VOLUME = 100
+DEFAULT_TEMPO = 60 # 60 BPM = 1sec/BPM
+DEFAULT_VOLUME = 100 # 0 - 127
+DEFAULT_INSTRUMENT = 0 # 0 - 16
 @dataclass
 class Note():
     pitch: str # "C", "D", "E", "F", "G", "A", "B" or "R" for rest
@@ -290,8 +291,9 @@ class Note():
 @dataclass
 class Tune():
     notes: list[Note]
+    instrument: int
     def __str__(self):
-        return f"Tune[{', '.join(str(note) for note in self.notes)}]"
+        return f"Tune[{', '.join(str(note) for note in self.notes)}]" # modify to show the instrument
 
 @dataclass
 class ConcatTunes():
@@ -323,7 +325,7 @@ class Volume():
 
 @dataclass
 class Track():
-    tracks: list[Expr]
+    tracks: list[Note | Tune]
     def __str__(self):
         return f"Track({', '.join(str(track) for track in self.tracks)})"
 
@@ -385,7 +387,7 @@ def setLoc[V](loc: Loc[V], value: V) -> None:
 class EvalError(Exception):
     pass
 
-type Value = int | bool | Note | Tune | Closure
+type Value = int | bool | Note | Tune | Track | Closure
 
 @dataclass
 class Closure:
@@ -429,39 +431,70 @@ def TransposeNote(tune: Tune, steps: int) -> Tune:
     return Tune(notes)
 
 
-def CreateMidiFile(tune: Tune | Track, instrument: int):
-    midi = MIDIFile(1)
-    # Set up MIDI structure 
-    track = 0
-    time = 0
-    channel = instrument
-
-    if type(tune) == Track:
+def CreateMidiFile(tune: Tune | Track, instrument: int):    
+    if isinstance(tune, Track):
         print("Creating MIDI file for Track")
+        num_tracks = len(tune.tracks)
+        midi = MIDIFile(numTracks=num_tracks)
+        for idx, subexpr in enumerate(tune.tracks):
+            notes = []
+            match subexpr:
+                case Note():
+                    notes = [subexpr]
+                case Tune():
+                    notes = flatten_tune(subexpr)
+                    instrument = subexpr.instrument
+                case _:
+                    raise EvalError("Track contains invalid expression")
+            time = 0
+            channel = instrument
+            midi.addTempo(idx, time, DEFAULT_TEMPO)
+            midi.addProgramChange(idx, channel, time, instrument)
+
+            for note in notes:
+                duration = note.duration
+
+                if note.pitch == "R":
+                    time += duration
+                    continue
+
+                pitch = NOTE_TO_MIDI[note.pitch]
+                midi.addNote(idx, channel, pitch, time, duration, note.volume)
+                time += duration
+
+        with open(FILENAME, "wb") as output_file:
+            midi.writeFile(output_file)
+        print(f"MIDI saves as {FILENAME}")
+
     elif type(tune) == Tune:
+        # Original work for a single track
         print("Creating MIDI file for Tune")
+        midi = MIDIFile(1)
+        # # Set up MIDI structure 
+        track = 0
+        time = 0
+        channel = instrument
+        tempo = DEFAULT_TEMPO
+        midi.addTempo(track, time, tempo)
+        midi.addProgramChange(track, channel, time, tune.instrument)
+        
+        # Must flatten Tune first before writing notes
+        flat_notes = flatten_tune(tune)
 
-    # tempo = DEFAULT_TEMPO
-    # midi.addTempo(track, time, tempo)
-    # midi.addProgramChange(track, channel, time, instrument)
-    
-    # Must flatten Tune first before writing notes
-    # flat_notes = flatten_tune(tune)
+        for note in flat_notes:
+            duration = note.duration
 
-    # for note in flat_notes:
-    #     duration = note.duration
+            if note.pitch == "R":
+                time += duration
+                continue
 
-    #     if note.pitch == "R":
-    #         time += duration
-    #         continue
-
-    #     pitch = NOTE_TO_MIDI[note.pitch]
-    #     midi.addNote(track, channel, pitch, time, duration, note.volume)
-    #     time += duration
-    
-    # with open(FILENAME, "wb") as output_file:
-    #     midi.writeFile(output_file)
-    # print(f"MIDI saves as {FILENAME}")
+            pitch = NOTE_TO_MIDI[note.pitch]
+            midi.addNote(track, channel, pitch, time, duration, note.volume)
+            time += duration
+        
+        with open(FILENAME, "wb") as output_file:
+            midi.writeFile(output_file)
+        print(f"MIDI saves as {FILENAME}")
 
 def flatten_tune(tune: Tune) -> list[Note]:
     new_Tune = []
@@ -738,7 +771,7 @@ def evalInEnv(env: Env[Loc[Value]], expr: Expr) -> Value:
                     print("showing int or bool: ", v)
                 case Note():
                     print("showing midi note")
-                case Tune():
+                case Tune() | Track():
                     print("showing midi file")
                     CreateMidiFile(v, 0)
                     os.startfile(FILENAME)
@@ -759,47 +792,43 @@ def evalInEnv(env: Env[Loc[Value]], expr: Expr) -> Value:
                 raise EvalError("Note name must be a string")
             if name not in NOTE_TO_MIDI:
                 raise EvalError(f"Invalid note name: {name}. Must be one of {list(NOTE_TO_MIDI.keys())}")
-
             duration = evalInEnv(env, d)
 
             # Check for duration
             if not isinstance(duration, int) or duration <= 0:
                 raise EvalError("Note duration must be a positive integer")
-            
             return Note(name, duration)
         
-        case Tune(n):
+        case Tune(n, ins):
             if not isinstance(n, list):
                 raise EvalError("Tunes must be a list of notes")
-            
+            instrument = evalInEnv(env, ins)
+            if not isinstance(instrument, int):
+                raise EvalError("Tune must be an integer expression for instruments")
+            if instrument < 1 or instrument > 16:
+                raise EvalError("instrument must be between 0 - 16")
+            # Check if all elements in the list (n) are valid objects
             result = []
-            # Check if all elements in the list are valid objects
             for note in n:
                 if not isinstance(note, (Tune, Note, Repeat, Volume)):
                     raise EvalError("Tunes must contain only Tune or Note objects")
                 note_value = evalInEnv(env, note)
                 result.append(note_value)
-            
-            return Tune(result)
+            return Tune(result, instrument)
 
         case ConcatTunes(l, r):
             left = evalInEnv(env, l)
             right = evalInEnv(env, r)
-
             if not isinstance(left, Tune) or not isinstance(right, Tune):
                 raise EvalError("ConcatTunes must be two Tunes")
-
             return Tune(left.notes + right.notes)
 
         case Transpose(t, s):
             if not isinstance(t, Tune):
                 raise EvalError("Transpose can only tune up or down Tunes")
-            
             steps = evalInEnv(env, s)
-
             if not isinstance(steps, int):
                 raise EvalError("Transpose steps must be an integer")
-            
             return TransposeNote(evalInEnv(env, t), steps)
 
         case Repeat(t, r):
@@ -807,16 +836,16 @@ def evalInEnv(env: Env[Loc[Value]], expr: Expr) -> Value:
             t_v = evalInEnv(env, t)
             r_v = evalInEnv(env, r)
             # check if either values are of correct types
-            if not isinstance(t_v, (Tune, Note, Volume)):
+            if not isinstance(t_v, (Tune, Note, Volume, Repeat)): # yes i am allowing Repeat over Repeat, i am aware
                 raise EvalError("Repeat expects a Tune or Note")
             if not isinstance(r_v, int):
                 raise EvalError("Repeat expects an int for repetition")
             # return the Tune or Note that is to be repeated on r times
             match t_v:
-                case Tune(n):
-                    return Tune(n * r_v)
+                case Tune(n, ins):
+                    return Tune(n * r_v, ins)
                 case Note(name, d):
-                    return Tune([Note(name, d)] * r_v)
+                    return Tune([Note(name, d)] * r_v, instrument=DEFAULT_INSTRUMENT)
 
         case Volume(t, l):
             # evaluate Note (t) and Expr (l) before changing volume
@@ -828,16 +857,15 @@ def evalInEnv(env: Env[Loc[Value]], expr: Expr) -> Value:
                 raise EvalError("Volume expects an integer for its volume level")
             if not (0 <= l_v <= 127):
                 raise EvalError("volume level must be between 0 and 127")
-
-            return Note(t_v.pitch, t_v.duration, volume=l_v)
+            return Note(t_v.pitch, t_v.duration, volume=l_v) # return a note for modified volume
 
         case Track(t):
-            return Track(t)
-            # # evaluate t path
-            # t_v = evalInEnv(env, t)
-            # if not isinstance(t_v, (Tune, Track)):
-            #     raise EvalError("Track expects a Tune")
-            # return # TODO RETURN EVAUATED TRACK
+            t_v = [evalInEnv(env, e) for e in t]
+            if len(t_v) < 1 or len(t_v) > 16:
+                raise EvalError("Track can only contain 0 - 16 individual tracks")
+            if not all(isinstance(ev, Tune) for ev in t_v):
+                raise EvalError("Track expects only Tune objects")
+            return Track(t_v)
 
         case _:
             raise EvalError(f"unknown expression: {expr}")
