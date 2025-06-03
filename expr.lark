@@ -1,6 +1,6 @@
 TRUE: "true"
 FALSE: "false"
-ID: /(?!(true|false|read|track)\b)[a-zA-Z_][a-zA-Z0-9_]*/
+ID: /(?!(true|false|show|read|track)\b)[a-zA-Z_][a-zA-Z0-9_]*/
 
 // ----- For DSL ----- //
 NOTE_PITCH: "C" | "C#" | "D" | "D#" | "E" | "F" | "F#" | "G" | "G#" | "A" | "A#" | "B" | "R"
@@ -16,7 +16,7 @@ NOTE_PITCH: "C" | "C#" | "D" | "D#" | "E" | "F" | "F#" | "G" | "G#" | "A" | "A#"
 
 ?expr1: ID ":=" expr1 -> assign
       | "show" expr1 -> show
-      | "if" expr0 "then" expr0 "else" expr0 -> if_expr
+      | "if" expr0 "then" expr0 "else" expr1 -> if_expr
       | expr2
 
 ?expr2: expr2 "||" expr3 -> or_expr

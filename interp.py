@@ -91,8 +91,8 @@ type Expr = Add | Sub | Mul | Div | Neg | Lit \
 #       - Show ✅
 #   - new DSL operators
 #       - Repeat ✅
-#       - Volume
-#       - Tempo
+#       - Volume ✅
+#       - Track ✅
 
 @dataclass
 class Add():
@@ -293,7 +293,7 @@ class Tune():
     notes: list[Note]
     instrument: int
     def __str__(self):
-        return f"Tune[{', '.join(str(note) for note in self.notes)}]" # modify to show the instrument
+        return f"Tune({', '.join(str(note) for note in self.notes)})(instrument: {self.instrument})"
 
 @dataclass
 class ConcatTunes():
@@ -552,7 +552,7 @@ def evalInEnv(env: Env[Loc[Value]], expr: Expr) -> Value:
                 raise EvalError("cannot divide boolean values")
             elif not isinstance(left, int) or not isinstance(right, int):
                 raise EvalError("division operator requires integer operands")
-            if (right == 0):
+            if right == 0:
                 raise EvalError("division by zero")
             return left // right
         
@@ -695,13 +695,13 @@ def evalInEnv(env: Env[Loc[Value]], expr: Expr) -> Value:
 
             if cond: # if condition is true
                 then_branch = evalInEnv(env, t)
-                if not isinstance(then_branch, (int, bool)):
-                    raise EvalError("If then must be int or bool")
+                # if not isinstance(then_branch, (int, bool)):
+                #     raise EvalError("If then must be int or bool")
                 return then_branch
             else:   # condition is false
                 else_branch = evalInEnv(env, e)
-                if not isinstance(else_branch, (int, bool)):
-                    raise EvalError("If else must be int or bool")
+                # if not isinstance(else_branch, (int, bool)):
+                #     raise EvalError("If else must be int or bool")
                 return else_branch
 
         case Ifnz(c, t, e):
@@ -730,6 +730,7 @@ def evalInEnv(env: Env[Loc[Value]], expr: Expr) -> Value:
             c = Closure(p, b, env)
             l = newLoc(c)
             newEnv = extendEnv(n, l, env)
+            c.env = newEnv
             return evalInEnv(newEnv, i)
 
         case App(f, a):
@@ -754,6 +755,9 @@ def evalInEnv(env: Env[Loc[Value]], expr: Expr) -> Value:
             l = lookupEnv(n, env)
             if l is None:
                 raise EvalError(f"unbound name {n}")
+            v_l = getLoc(l)
+            if isinstance(v_l, Closure):
+                raise EvalError(f"cannot assign to function name {n}")
             v = evalInEnv(env, e1)
             setLoc(l, v)
             return v
@@ -768,7 +772,7 @@ def evalInEnv(env: Env[Loc[Value]], expr: Expr) -> Value:
             # Show v in a suitable way
             match v:
                 case int() | bool():
-                    print("showing int or bool: ", v)
+                    print(v)
                 case Note():
                     print("showing midi note")
                 case Tune() | Track():
