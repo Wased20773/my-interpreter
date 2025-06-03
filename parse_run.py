@@ -157,27 +157,29 @@ def driver():
         except EOFError:
             break
 
+def myDriver(s:str):
+    t = parse(s)
+    print("raw: ", t)
+    print("pretty: ")
+    print(t.pretty())
+    ast = genAST(t)
+    print("raw AST:", repr(ast))
+    run(ast)
+
 # For quick testing, uncomment below code
-driver()
+# driver()
 
 # ----- Demonstration of DSL's concrete syntax ----- #
 '''
 FYI I AM NOT A MUSICIAN, PLEASE EXCUSE THE LACK OF MUSIC THEORY
-
 Concrete examples of using the DSL
-
-Creating a simple beat
-
-track [
-    repeat (tune [ note R for 1 seconds, note G for 1 seconds, note R for 1 seconds, note B for 1 seconds] (118), 5),
-    repeat (tune [ note R for 2 seconds, note C for 1 seconds, note R for 1 seconds ] (1), 5),
-    repeat (tune [ note A for 2 seconds, note R for 2 seconds](73), 5),
-
-    repeat ( tune [ note F# for 1 seconds, note F for 1 seconds, note F# for 1 seconds, note F for 1 seconds ](34), 3 ),
-]
-
 '''
-
+# Creating a simple beat
+beat = '''
+track [ repeat (tune [ note R for 1 seconds, note G for 1 seconds, note R for 1 seconds, note B for 1 seconds] (118), 5), repeat (tune [ note R for 2 seconds, note C for 1 seconds, note R for 1 seconds ] (1), 5), repeat (tune [ note A for 2 seconds, note R for 2 seconds](73), 5), repeat ( tune [ note F# for 1 seconds, note F for 1 seconds, note F# for 1 seconds, note F for 1 seconds ](34), 3 )]
+'''
+print(beat)
+myDriver(beat)
 
 # just_parse("note C for 3 seconds")
 # raw AST:  Note(pitch='C', duration=Lit(value=3))
