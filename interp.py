@@ -277,9 +277,29 @@ class Read():
 # ----- Domain-specific extension (Tunes) ----- #
 
 FILENAME = "answer.midi"
-DEFAULT_TEMPO = 60 # 60 BPM = 1sec/BPM
+DEFAULT_TEMPO = 120 # 60 BPM = 1sec/BPM
 DEFAULT_VOLUME = 100 # 0 - 127
-DEFAULT_INSTRUMENT = 0 # 0 - 16
+DEFAULT_INSTRUMENT = 1 # 1 - 128
+# Instruments defined here in better detail:
+#   - "https://soundprogramming.net/file-formats/general-midi-instrument-list/"
+# 1 - 8 (Piano)
+# 9 - 16 (Chromatic percussion)
+# 17 - 24 (Organ)
+# 25 - 32 (Guitar)
+# 33 - 40 (Bass)
+# 41 - 48 (Strings)
+# 49 - 56 (Strings Continued)
+# 57 - 64 (Brass)
+# 65 - 72 (Reed)
+# 73 - 80 (Pipe)
+# 81 - 88 (Synth Lead)
+# 89 - 96 (Synth Pad)
+# 97 - 104 (Synth Effects)
+# 105 - 112 (Ethnic)
+# 113 - 119 (Percussive)
+# 120 - 128 (Sound Effects)
+
+
 @dataclass
 class Note():
     pitch: str # "C", "D", "E", "F", "G", "A", "B" or "R" for rest
@@ -291,7 +311,7 @@ class Note():
 @dataclass
 class Tune():
     notes: list[Note]
-    instrument: int
+    instrument: Expr
     def __str__(self):
         return f"Tune({', '.join(str(note) for note in self.notes)})(instrument: {self.instrument})"
 
@@ -347,7 +367,7 @@ MIDI_TO_NOTE = {
     67: "G", 68: "G#",
     69: "A", 70: "A#",
     71: "B",
-    0:  "R",  # Rest (no pitch)
+    0:  "R",  # Rest
 }
 
 # ----- Environment ----- #
@@ -436,6 +456,7 @@ def CreateMidiFile(tune: Tune | Track, instrument: int):
         print("Creating MIDI file for Track")
         num_tracks = len(tune.tracks)
         midi = MIDIFile(numTracks=num_tracks)
+        midi.addTempo(0, 0, DEFAULT_TEMPO)
         for idx, subexpr in enumerate(tune.tracks):
             notes = []
             match subexpr:
@@ -447,8 +468,7 @@ def CreateMidiFile(tune: Tune | Track, instrument: int):
                 case _:
                     raise EvalError("Track contains invalid expression")
             time = 0
-            channel = instrument
-            midi.addTempo(idx, time, DEFAULT_TEMPO)
+            channel = idx
             midi.addProgramChange(idx, channel, time, instrument)
 
             for note in notes:
@@ -466,7 +486,7 @@ def CreateMidiFile(tune: Tune | Track, instrument: int):
             midi.writeFile(output_file)
         print(f"MIDI saves as {FILENAME}")
 
-    elif type(tune) == Tune:
+    elif isinstance(tune, Tune):
         # Original work for a single track
         print("Creating MIDI file for Tune")
         midi = MIDIFile(1)
@@ -492,6 +512,23 @@ def CreateMidiFile(tune: Tune | Track, instrument: int):
             midi.addNote(track, channel, pitch, time, duration, note.volume)
             time += duration
         
+        with open(FILENAME, "wb") as output_file:
+            midi.writeFile(output_file)
+        print(f"MIDI saves as {FILENAME}")
+    elif isinstance(tune, Note):
+        track = 0
+        time = 0
+        channel = instrument
+        tempo = DEFAULT_TEMPO
+        midi = MIDIFile(1)
+        midi.addTempo(track, time, DEFAULT_TEMPO)
+        midi.addProgramChange(track, channel, time, instrument)
+
+        pitch = NOTE_TO_MIDI[tune.pitch]
+
+        midi.addNote(track, channel, pitch, time, tune.duration, tune.volume)
+        time += tune.duration
+
         with open(FILENAME, "wb") as output_file:
             midi.writeFile(output_file)
         print(f"MIDI saves as {FILENAME}")
@@ -773,9 +810,7 @@ def evalInEnv(env: Env[Loc[Value]], expr: Expr) -> Value:
             match v:
                 case int() | bool():
                     print(v)
-                case Note():
-                    print("showing midi note")
-                case Tune() | Track():
+                case Note() | Tune() | Track():
                     print("showing midi file")
                     CreateMidiFile(v, 0)
                     os.startfile(FILENAME)
@@ -809,8 +844,8 @@ def evalInEnv(env: Env[Loc[Value]], expr: Expr) -> Value:
             instrument = evalInEnv(env, ins)
             if not isinstance(instrument, int):
                 raise EvalError("Tune must be an integer expression for instruments")
-            if instrument < 1 or instrument > 16:
-                raise EvalError("instrument must be between 0 - 16")
+            if instrument < 1 or instrument > 128:
+                raise EvalError("instrument must be between 1 - 128")
             # Check if all elements in the list (n) are valid objects
             result = []
             for note in n:
@@ -818,7 +853,7 @@ def evalInEnv(env: Env[Loc[Value]], expr: Expr) -> Value:
                     raise EvalError("Tunes must contain only Tune or Note objects")
                 note_value = evalInEnv(env, note)
                 result.append(note_value)
-            return Tune(result, instrument)
+            return Tune(result, instrument-1)
 
         case ConcatTunes(l, r):
             left = evalInEnv(env, l)
@@ -840,16 +875,20 @@ def evalInEnv(env: Env[Loc[Value]], expr: Expr) -> Value:
             t_v = evalInEnv(env, t)
             r_v = evalInEnv(env, r)
             # check if either values are of correct types
-            if not isinstance(t_v, (Tune, Note, Volume, Repeat)): # yes i am allowing Repeat over Repeat, i am aware
-                raise EvalError("Repeat expects a Tune or Note")
+            # if not isinstance(t_v, (Tune, Note, Volume, Repeat)): # yes i am allowing Repeat over Repeat, i am aware
+            #     raise EvalError("Repeat expects a Tune, Note, Volume, or Repeat object")
             if not isinstance(r_v, int):
                 raise EvalError("Repeat expects an int for repetition")
+            if isinstance(t_v, Repeat):
+                t_v = evalInEnv(env, t_v)
             # return the Tune or Note that is to be repeated on r times
             match t_v:
                 case Tune(n, ins):
                     return Tune(n * r_v, ins)
                 case Note(name, d):
                     return Tune([Note(name, d)] * r_v, instrument=DEFAULT_INSTRUMENT)
+                case _:
+                    raise EvalError("Repeat contains invalid expression")
 
         case Volume(t, l):
             # evaluate Note (t) and Expr (l) before changing volume
@@ -887,7 +926,7 @@ def run(expr: Expr) -> None:
                 if type(expr) == ConcatTunes or type(expr) == Transpose:
                     print(f"Result: {result}")
 
-                CreateMidiFile(result, 0)
+                CreateMidiFile(result, 1)
                 print() # Creates new line
                 # os.startfile(FILENAME) # This is for Windows only
 
@@ -941,7 +980,7 @@ def run(expr: Expr) -> None:
 
 #     Note("F", Lit(1)), Note("F", Lit(1)), Note("E", Lit(1)), Note("E", Lit(1)),
 #     Note("D", Lit(1)), Note("D", Lit(1)), Note("C", Lit(2)),
-# ])
+# ], 10)
 # run(twinkle_star)
 # # MIDI saves as answer.midi
 
