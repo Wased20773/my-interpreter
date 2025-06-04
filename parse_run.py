@@ -171,33 +171,42 @@ def myDriver(s:str):
 
 # ----- Demonstration of DSL's concrete syntax ----- #
 '''
-FYI I AM NOT A MUSICIAN, PLEASE EXCUSE THE LACK OF MUSIC THEORY
-Concrete examples of using the DSL
+Things to consider when creating concrete examples of my DSL
+    - Check interp.py for the list of instrument values (lines 283 - 300)
+    - Volume is in the range 0 (silent) to 127 (maximum)
+    - Instruments range from 0-127 (General MIDI Instrument)
+    - Repeat works best with Tunes and Notes, might act weird with 
+      other operators
+    - Track will allow for multiple tunes to play with their individual
+      instrument.
 '''
-# Creating a simple beat
-beat = '''
-track [ repeat (tune [ note R for 1 seconds, note G for 1 seconds, note R for 1 seconds, note B for 1 seconds] (118), 5), repeat (tune [ note R for 2 seconds, note C for 1 seconds, note R for 1 seconds ] (1), 5), repeat (tune [ note A for 2 seconds, note R for 2 seconds](73), 5), repeat ( tune [ note F# for 1 seconds, note F for 1 seconds, note F# for 1 seconds, note F for 1 seconds ](34), 3 )]
-'''
-print(beat)
-myDriver(beat)
+# -------------------------------------------------- #
+# 1. Basic melody with a single instrument
+# basic = '''
+# show tune [ note C for 1 seconds, note D for 1 seconds, note E for 1 seconds ] (1)
+# '''
+# myDriver(basic)
 
-# just_parse("note C for 3 seconds")
-# raw AST:  Note(pitch='C', duration=Lit(value=3))
+# -------------------------------------------------- #
+# 2. Melody with dynamic volume (volume read from user)
+# volume_input = '''
+# show tune [ volume (note A for 3 seconds, read) ] (5)
+# '''
+# myDriver(volume_input)
 
-# just_parse("tune { note C for 1 seconds, note B for 2 seconds, note A for 3 seconds }")
-# # raw AST:  Tune(notes=[Note(pitch='C', duration=Lit(value=1)), Note(pitch='B', duration=Lit(value=2)), Note(pitch='A', duration=Lit(value=3))])
+# -------------------------------------------------- #
+# 3. Repeat a melody pattern by user given  times
+# repeat = '''
+# show repeat ( tune [ note C for 1 seconds, note D for 1 seconds, note E for 1 seconds ] (1) , 3)
+# '''
+# myDriver(repeat)
 
-# just_parse("tune { note C for 1 seconds, note B for 2 seconds } ++ tune { note A for 3 seconds }")
-# # raw AST:  ConcatTunes(left=Tune(notes=[Note(pitch='C', duration=Lit(value=1)), Note(pitch='B', duration=Lit(value=2))]), right=Tune(notes=[Note(pitch='A', duration=Lit(value=3))]))
-
-# just_parse("transpose tune { note C for 1 seconds, note B for 2 seconds, note A for 3 seconds} by 3")
-# # raw AST:  Transpose(tune=Tune(notes=[Note(pitch='C', duration=Lit(value=1)), Note(pitch='B', duration=Lit(value=2)), Note(pitch='A', duration=Lit(value=3))]), steps=Lit(value=3))
-
-# just_parse("transpose tune { note A for 1 seconds, note B for 2 seconds } by -1")
-# # raw AST:  Transpose(tune=Tune(notes=[Note(pitch='A', duration=Lit(value=1)), Note(pitch='B', duration=Lit(value=2))]), steps=Neg(expr=Lit(value=1)))
-
-# just_parse("tune {}")
-# # raw AST:  Tune(notes=[])
-
-# just_parse("tune { note E for 1 seconds } ++ tune { note F for 2 seconds }")
-# raw AST:  ConcatTunes(left=Tune(notes=[Note(pitch='E', duration=Lit(value=1))]), right=Tune(notes=[Note(pitch='F', duration=Lit(value=2))]))
+# -------------------------------------------------- #
+# 4. Multi-instrument track demo for a simple beat
+# Suggested values to ues: 116 and 116
+# beat = '''
+# show track [ repeat ( tune [ note R for 1 seconds, note G for 1 seconds, note R for 1 seconds, note B for 1 seconds] (read), 5), repeat (tune [ note R for 2 seconds, note C for 1 seconds, note R for 1 seconds ] (read), 5)]
+# '''
+# print(beat)
+# myDriver(beat)
+# -------------------------------------------------- #

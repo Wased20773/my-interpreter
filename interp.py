@@ -448,7 +448,7 @@ def TransposeNote(tune: Tune, steps: int) -> Tune:
         new_pitch = MIDI_TO_NOTE[transpose_midi]
         notes.append(Note(new_pitch, note.duration))
 
-    return Tune(notes)
+    return Tune(notes, tune.instrument)
 
 
 def CreateMidiFile(tune: Tune | Track, instrument: int):    
@@ -860,7 +860,7 @@ def evalInEnv(env: Env[Loc[Value]], expr: Expr) -> Value:
             right = evalInEnv(env, r)
             if not isinstance(left, Tune) or not isinstance(right, Tune):
                 raise EvalError("ConcatTunes must be two Tunes")
-            return Tune(left.notes + right.notes)
+            return Tune(left.notes + right.notes, left.instrument + right.instrument)
 
         case Transpose(t, s):
             if not isinstance(t, Tune):
@@ -955,11 +955,11 @@ def run(expr: Expr) -> None:
 # run (b)
 # # Result: Note(Pitch: C, Duration: 3)
 
-# c : Expr = Tune([a, b])
+# c : Expr = Tune([a, b], Lit(1))
 # run (c)
 # # MIDI saves as answer.midi
 
-# d : Expr = Tune([Note("A", Lit(1)), Note("B", Lit(2))])
+# d : Expr = Tune([Note("A", Lit(1)), Note("B", Lit(2))], Lit(1))
 # run (d)
 # # MIDI saves as answer.midi
 
@@ -980,7 +980,7 @@ def run(expr: Expr) -> None:
 
 #     Note("F", Lit(1)), Note("F", Lit(1)), Note("E", Lit(1)), Note("E", Lit(1)),
 #     Note("D", Lit(1)), Note("D", Lit(1)), Note("C", Lit(2)),
-# ], 10)
+# ], Lit(10))
 # run(twinkle_star)
 # # MIDI saves as answer.midi
 
