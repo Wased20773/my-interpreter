@@ -173,6 +173,7 @@ def myDriver(s:str):
 '''
 Things to consider when creating concrete examples of my DSL
     - Check interp.py for the list of instrument values (lines 283 - 300)
+    - Check interp.py for MIDI values of notes (lines 352 - 371)
     - Volume is in the range 0 (silent) to 127 (maximum)
     - Instruments range from 0-127 (General MIDI Instrument)
     - Repeat works best with Tunes and Notes, might act weird with 
@@ -195,18 +196,18 @@ Things to consider when creating concrete examples of my DSL
 # myDriver(volume_input)
 
 # -------------------------------------------------- #
-# 3. Repeat a melody pattern by user given  times
+# 3. Repeat a melody pattern by multiple times
 # repeat = '''
 # show repeat ( tune [ note C for 1 seconds, note D for 1 seconds, note E for 1 seconds ] (1) , 3)
 # '''
 # myDriver(repeat)
 
 # -------------------------------------------------- #
-# 4. Multi-instrument track demo for a simple beat
+# 4. Multi-instrument track demo for a simple beat (instrument
+# read from user)
 # Suggested values to ues: 116 and 116
 # beat = '''
 # show track [ repeat ( tune [ note R for 1 seconds, note G for 1 seconds, note R for 1 seconds, note B for 1 seconds] (read), 5), repeat (tune [ note R for 2 seconds, note C for 1 seconds, note R for 1 seconds ] (read), 5)]
 # '''
-# print(beat)
 # myDriver(beat)
 # -------------------------------------------------- #
