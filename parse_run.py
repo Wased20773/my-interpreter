@@ -113,7 +113,7 @@ class ToExpr(Transformer[Token, Expr]):
     # --- DSL --- #
     def note(self, args: tuple[Token, Expr]) -> Expr:
         pitch_token, duration_expr = args
-        return Note(pitch_token.value, duration_expr)
+        return Note(str(pitch_token), duration_expr)
     def tune(self, args: list[Expr, Expr]) -> Expr:
         return Tune(args[0], args[1])
     def concat_tunes(self, args: tuple[Expr, Expr]) -> Expr:
@@ -207,7 +207,120 @@ Things to consider when creating concrete examples of my DSL
 # read from user)
 # Suggested values to ues: 116 and 116
 # beat = '''
-# show track [ repeat ( tune [ note R for 1 seconds, note G for 1 seconds, note R for 1 seconds, note B for 1 seconds] (read), 5), repeat (tune [ note R for 2 seconds, note C for 1 seconds, note R for 1 seconds ] (read), 5)]
+# show track [ repeat ( tune [ note G4 for 1 seconds, note B4 for 1 seconds] (read), 10), repeat (tune [ note R for 1 seconds, note C4 for 1 seconds, note R for 1 seconds, note F4 for 1 seconds ] (read), 5)]
 # '''
 # myDriver(beat)
 # -------------------------------------------------- #
+# ---------- Below are favorites for certain instruments -------------- #
+FX1 = 97    # good vibrating beat
+FX6 = 102   # good ambiance noise
+Drawbar_Organ = 17 # constant deep sound
+Electric_Base = 34 # good guitar bass
+current = 37
+# ---------- Below are my custom songs -------------- #
+# 1. Basic beat
+drums = f'''
+show track [ repeat ( tune [ note C1 for 1 seconds, note R for 1 seconds, note C1 for 1 seconds, note R for 1 seconds, note C1 for 1 seconds, note R for 1 seconds, note C1 for 1 seconds, note R for 1 seconds, note C#1 for 1 seconds, note D1 for 1 seconds, note D#1 for 1 seconds, note E1 for 1 seconds, note F1 for 1 seconds, note F#1 for 1 seconds, note G1 for 1 seconds, note G#1 for 1 seconds, note A1 for 1 seconds, note A#1 for 1 seconds, note B1 for 1 seconds]({current}), 5) ]
+'''
+
+
+# --------- Below are all octaves from -1 to 9 --------- #
+octave_negativeOne = f'''
+show track [ repeat (tune [ note C-1 for 1 seconds, note D-1 for 1 seconds, note E-1 for 1 seconds, note F-1 for 1 seconds, note G-1 for 1 seconds, note A-1 for 1 seconds, note B-1 for 1 seconds]({current}), 20) ]
+'''
+octave_zero = f'''
+show track [ repeat (tune [ note C0 for 1 seconds, note D0 for 1 seconds, note E0 for 1 seconds, note F0 for 1 seconds, note G0 for 1 seconds, note A0 for 1 seconds, note B0 for 1 seconds]({current}), 20) ]
+'''
+octave_one = f'''
+show track [ repeat (tune [ note C1 for 1 seconds, note D1 for 1 seconds, note E1 for 1 seconds, note F1 for 1 seconds, note G1 for 1 seconds, note A1 for 1 seconds, note B1 for 1 seconds]({current}), 20) ]
+'''
+octave_two = f'''
+show track [ repeat (tune [ note C2 for 1 seconds, note D2 for 1 seconds, note E2 for 1 seconds, note F2 for 1 seconds, note G2 for 1 seconds, note A2 for 1 seconds, note B2 for 1 seconds]({current}), 20) ]
+'''
+octave_three = f'''
+show track [ repeat (tune [ note C3 for 1 seconds, note D3 for 1 seconds, note E3 for 1 seconds, note F3 for 1 seconds, note G3 for 1 seconds, note A3 for 1 seconds, note B3 for 1 seconds]({current}), 20) ]
+'''
+octave_four = f'''
+show track [ repeat (tune [ note C4 for 1 seconds, note D4 for 1 seconds, note E4 for 1 seconds, note F4 for 1 seconds, note G4 for 1 seconds, note A4 for 1 seconds, note B4 for 1 seconds]({current}), 20) ]
+'''
+octave_five = f'''
+show track [ repeat (tune [ note C5 for 1 seconds, note D5 for 1 seconds, note E5 for 1 seconds, note F5 for 1 seconds, note G5 for 1 seconds, note A5 for 1 seconds, note B5 for 1 seconds]({current}), 20) ]
+'''
+octave_six = f'''
+show track [ repeat (tune [ note C6 for 1 seconds, note D6 for 1 seconds, note E6 for 1 seconds, note F6 for 1 seconds, note G6 for 1 seconds, note A6 for 1 seconds, note B6 for 1 seconds]({current}), 20) ]
+'''
+octave_seven = f'''
+show track [ repeat (tune [ note C7 for 1 seconds, note D7 for 1 seconds, note E7 for 1 seconds, note F7 for 1 seconds, note G7 for 1 seconds, note A7 for 1 seconds, note B7 for 1 seconds]({current}), 20) ]
+'''
+octave_eight = f'''
+show track [ repeat (tune [ note C8 for 1 seconds, note D8 for 1 seconds, note E8 for 1 seconds, note F8 for 1 seconds, note G8 for 1 seconds, note A8 for 1 seconds, note B8 for 1 seconds]({current}), 20) ]
+'''
+octave_nine = f'''
+show track [ repeat (tune [ note C9 for 1 seconds, note D9 for 1 seconds, note E9 for 1 seconds, note F9 for 1 seconds, note G9 for 1 seconds, note A9 for 1 seconds, note B9 for 1 seconds]({current}), 20) ]
+'''
+
+# target temp is 480
+# intro beat is 48 seconds loop (0 - length)
+# middle starts after 48*4, slightly faster with more notes playing (25sec - length)
+# end beat is 48 seconds loop (somewhere - length)
+
+cooking = f'''
+show track 
+    [ 
+        repeat (
+            tune [
+                volume(note D1 for 1 seconds, 127),
+                volume(note R for 2 seconds, 127),
+                volume(note D1 for 1 seconds, 127),
+                volume(note R for 2 seconds, 127),
+                volume(note F1 for 1 seconds, 127),
+                volume(note R for 5 seconds, 127)
+            ]({Drawbar_Organ}), 76
+        ),
+        
+        tune [
+            repeat (
+                tune [
+                    volume (note C4 for 48 seconds, 100),
+                    volume (note C3 for 48 seconds, 100)
+                ]({FX1}), 8
+            )
+        ]({FX1}),
+
+        tune [
+            note R for 192 seconds,
+            repeat (
+                tune [
+                    volume(note A6 for 1 seconds, 60),
+                    volume(note R for 47 seconds, 60),
+                    volume(note F#7 for 1 seconds, 60),
+                    volume(note G7 for 1 seconds, 60),
+                    volume(note G#7 for 1 seconds, 60),
+                    volume(note A7 for 1 seconds, 60),
+                    volume(note R for 44 seconds, 60)
+                ](10), 8
+            )
+        ](10),
+
+        tune [
+            note R for 192 seconds,
+            repeat(
+                tune [
+                    volume(note A3 for 24 seconds, 100),
+                    volume(note B3 for 12 seconds, 100),
+                    volume(note A#3 for 12 seconds, 100),
+                    volume(note A3 for 24 seconds, 100),
+                    volume(note F3 for 12 seconds, 100),
+                    volume(note E3 for 12 seconds, 100)
+                ](18), 9
+            ),
+            tune [
+                volume(note A3 for 18 seconds, 100)
+            ](18)
+        ] (18)
+    ]
+'''
+# 
+
+# -------------- Test strings below ----------------- #
+myDriver(cooking)
